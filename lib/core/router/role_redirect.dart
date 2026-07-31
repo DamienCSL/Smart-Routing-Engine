@@ -5,11 +5,9 @@ import '../constants/route_paths.dart';
 String homePathForRole(UserRole role) {
   return switch (role) {
     UserRole.customer => RoutePaths.customerHome,
-    UserRole.hubWorker ||
-    UserRole.driver ||
-    UserRole.dispatcher ||
-    UserRole.admin =>
+    UserRole.hubWorker || UserRole.driver || UserRole.admin =>
       RoutePaths.hubWorkerHome,
+    UserRole.dispatcher => RoutePaths.dispatcherHome,
     UserRole.dropPoint => RoutePaths.dropPointHome,
     UserRole.storekeeper => RoutePaths.storekeeperHome,
   };
@@ -34,10 +32,12 @@ bool canAccessRoute(UserRole role, String location) {
   if (location == RoutePaths.profile) return true;
   if (location == RoutePaths.notifications) return true;
 
-  // Legacy driver/dispatcher paths still allowed for hub ops roles.
   if (role.isHubOps) {
     if (location.startsWith(RoutePaths.hubWorkerHome)) return true;
     if (location.startsWith(RoutePaths.driverHome)) return true;
+  }
+
+  if (role == UserRole.dispatcher) {
     if (location.startsWith(RoutePaths.dispatcherHome)) return true;
   }
 

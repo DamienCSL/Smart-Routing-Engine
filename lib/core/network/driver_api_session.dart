@@ -17,6 +17,7 @@ class DriverApiSession {
     this.userId = 0,
     this.firebaseUid,
     this.driverId,
+    this.dispatcherId,
     this.custAcNo,
   });
 
@@ -28,6 +29,7 @@ class DriverApiSession {
   final int userId;
   final String? firebaseUid;
   final int? driverId;
+  final int? dispatcherId;
   final String? custAcNo;
 }
 
@@ -134,6 +136,9 @@ class DriverApiSessionNotifier extends StateNotifier<DriverApiSession?> {
       driverId: map['driverId'] == null
           ? null
           : int.tryParse('${map['driverId']}'),
+      dispatcherId: map['dispatcherId'] == null
+          ? null
+          : int.tryParse('${map['dispatcherId']}'),
       custAcNo: map['custAcNo']?.toString(),
     );
   }

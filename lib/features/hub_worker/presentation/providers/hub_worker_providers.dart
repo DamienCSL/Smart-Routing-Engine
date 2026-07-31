@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/network/driver_api_providers.dart';
+import '../../../../core/network/driver_api_session.dart';
 import '../../../../core/network/supabase_client.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../shared/enums/shipment_status.dart';
+import '../../../../shared/enums/user_role.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../driver/domain/entities/driver_task.dart';
 import '../../data/datasources/hub_worker_api_datasource.dart';
@@ -26,6 +28,11 @@ final hubWorkerProfileProvider =
   ref.watch(authStateProvider);
   try {
     if (Env.useDriverApi) {
+      final session = ref.watch(driverApiSessionProvider);
+      if (session == null || session.role == UserRole.dispatcher ||
+          session.role == UserRole.customer) {
+        return null;
+      }
       return await ref.watch(hubWorkerApiDataSourceProvider).getCurrentProfile();
     }
     final ds = ref.watch(hubWorkerRemoteDataSourceProvider);

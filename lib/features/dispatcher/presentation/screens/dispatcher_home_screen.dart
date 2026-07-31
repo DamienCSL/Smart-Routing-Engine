@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/config/env.dart';
 import '../../../../core/constants/demo_zones.dart';
 import '../../../../core/constants/route_paths.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
@@ -22,16 +23,18 @@ class DispatcherHomeScreen extends ConsumerWidget {
     final shipmentsAsync = ref.watch(zoneShipmentsProvider);
     final driversAsync = ref.watch(zoneDriversProvider);
     final theme = Theme.of(context);
+    final apiMode = Env.useDriverApi && !Env.isSupabaseConfigured;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Zone Dashboard'),
+        title: Text(apiMode ? 'Dispatch Desk' : 'Zone Dashboard'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.map_outlined),
-            tooltip: 'Zone route map',
-            onPressed: () => context.push(RoutePaths.dispatcherMap),
-          ),
+          if (!apiMode)
+            IconButton(
+              icon: const Icon(Icons.map_outlined),
+              tooltip: 'Zone route map',
+              onPressed: () => context.push(RoutePaths.dispatcherMap),
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -40,7 +43,7 @@ class DispatcherHomeScreen extends ConsumerWidget {
               ref.invalidate(zoneDriversProvider);
             },
           ),
-          const NotificationBellButton(),
+          if (!apiMode) const NotificationBellButton(),
           IconButton(
             icon: const Icon(Icons.person_outlined),
             onPressed: () => context.push(RoutePaths.profile),
@@ -56,8 +59,14 @@ class DispatcherHomeScreen extends ConsumerWidget {
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (dispatcher) {
               if (dispatcher == null) {
-                return const Center(
-                  child: Text('Dispatcher profile not found'),
+                return Center(
+                  child: Text(
+                    apiMode
+                        ? 'Dispatcher profile not linked. '
+                            'Use dispatcher@iposb.demo or run sql/007_dispatcher_mobile.sql'
+                        : 'Dispatcher profile not found',
+                    textAlign: TextAlign.center,
+                  ),
                 );
               }
 
@@ -77,7 +86,10 @@ class DispatcherHomeScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Zone: ${DemoZones.labelOf(dispatcher.zone)}',
+                      apiMode
+                          ? 'Branch ${dispatcher.hubId ?? '—'} · '
+                              '${DemoZones.labelOf(dispatcher.zone)}'
+                          : 'Zone: ${DemoZones.labelOf(dispatcher.zone)}',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -89,7 +101,9 @@ class DispatcherHomeScreen extends ConsumerWidget {
                         child: AppLoadingIndicator(),
                       ),
                       error: (e, _) => Text(
-                        '$e\n\nRun 007_dispatcher_ops.sql in Supabase.',
+                        apiMode
+                            ? '$e'
+                            : '$e\n\nRun 007_dispatcher_ops.sql in Supabase.',
                         style: TextStyle(color: theme.colorScheme.error),
                       ),
                       data: (shipments) {
@@ -103,7 +117,7 @@ class DispatcherHomeScreen extends ConsumerWidget {
                             Row(
                               children: [
                                 DispatcherStatCard(
-                                  label: 'Total',
+                                  label: apiMode ? 'Unassigned' : 'Total',
                                   value: stats.total,
                                   icon: Icons.inventory_2_outlined,
                                 ),
@@ -133,7 +147,7 @@ class DispatcherHomeScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 24),
                             Text(
-                              'Drivers in zone',
+                              'Drivers',
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
@@ -141,12 +155,13 @@ class DispatcherHomeScreen extends ConsumerWidget {
                             const SizedBox(height: 8),
                             driversAsync.when(
                               loading: () => const LinearProgressIndicator(),
-                              error: (_, __) => const Text('Could not load drivers'),
+                              error: (_, __) =>
+                                  const Text('Could not load drivers'),
                               data: (drivers) => _DriverChips(drivers: drivers),
                             ),
                             const SizedBox(height: 24),
                             Text(
-                              'Zone shipments',
+                              apiMode ? 'Unassigned jobs' : 'Zone shipments',
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
@@ -154,11 +169,15 @@ class DispatcherHomeScreen extends ConsumerWidget {
                             const SizedBox(height: 12),
                             if (shipments.isEmpty)
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 32),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 32),
                                 child: Text(
-                                  'No shipments in this zone yet. '
-                                  'Create one as a customer '
-                                  '(Kota Kinabalu Metro → Sandakan).',
+                                  apiMode
+                                      ? 'No unassigned consignments. '
+                                          'Create an order as customer@iposb.demo.'
+                                      : 'No shipments in this zone yet. '
+                                          'Create one as a customer '
+                                          '(Kota Kinabalu Metro → Sandakan).',
                                   textAlign: TextAlign.center,
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
@@ -169,11 +188,15 @@ class DispatcherHomeScreen extends ConsumerWidget {
                               ...shipments.map(
                                 (shipment) => ShipmentListTile(
                                   shipment: shipment,
-                                  onTap: () => context.push(
-                                    RoutePaths.dispatcherShipmentDetail(
-                                      shipment.id,
-                                    ),
-                                  ),
+                                  onTap: () {
+                                    if (!apiMode) {
+                                      context.push(
+                                        RoutePaths.dispatcherShipmentDetail(
+                                          shipment.id,
+                                        ),
+                                      );
+                                    }
+                                  },
                                 ),
                               ),
                           ],
@@ -199,19 +222,22 @@ class _DriverChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (drivers.isEmpty) {
-      return const Text('No drivers registered in this zone.');
+      return const Text('No drivers registered yet.');
     }
 
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: drivers.map((d) {
+        final label = d.driverName?.isNotEmpty == true
+            ? '${d.driverName} · ${d.vehicleType}'
+            : '${d.vehiclePlate} · ${d.vehicleType}';
         return Chip(
           avatar: Icon(
             d.isAvailable ? Icons.check_circle : Icons.pause_circle_outline,
             size: 18,
           ),
-          label: Text('${d.vehiclePlate} · ${d.vehicleType}'),
+          label: Text(label),
         );
       }).toList(),
     );

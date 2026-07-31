@@ -14,6 +14,7 @@ import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/customer/presentation/screens/create_shipment_screen.dart';
 import '../../features/customer/presentation/screens/customer_home_screen.dart';
 import '../../features/customer/presentation/screens/shipment_detail_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_home_screen.dart';
 import '../../features/drop_point/presentation/screens/drop_point_home_screen.dart';
 import '../../features/drop_point/presentation/screens/drop_point_task_detail_screen.dart';
 import '../../features/hub_worker/presentation/screens/demo_ops_desk_screen.dart';
@@ -180,6 +181,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             return TrackOrderScreen(initialCn: cn);
           },
         ),
+        GoRoute(
+          path: RoutePaths.dispatcherHome,
+          name: 'dispatcher',
+          builder: (context, state) => const DispatcherHomeScreen(),
+        ),
         ..._hubWorkerRoutes(),
       ],
     );
@@ -250,14 +256,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.dispatcherHome,
         name: 'dispatcher',
-        redirect: (context, state) {
-          final rest =
-              state.uri.path.replaceFirst(RoutePaths.dispatcherHome, '');
-          if (rest.isEmpty || rest == '/') return RoutePaths.hubWorkerHome;
-          if (rest.startsWith('/map')) return RoutePaths.hubWorkerMap;
-          return RoutePaths.hubWorkerHome;
-        },
-        builder: (context, state) => const HubWorkerHomeScreen(),
+        builder: (context, state) => const DispatcherHomeScreen(),
+        routes: [
+          GoRoute(
+            path: 'map',
+            name: 'dispatcherMap',
+            builder: (context, state) => const HubWorkerOpsMapScreen(),
+          ),
+        ],
       ),
       GoRoute(
         path: RoutePaths.dropPointHome,
