@@ -126,8 +126,9 @@ class _IposbDispatchCard extends StatelessWidget {
         hasDriver ? 'Driver assigned' : 'Awaiting dispatcher assignment';
     final body = hasDriver
         ? 'Driver #$driverId will handle pickup / delivery for this CN.'
-        : 'Order is in IPOSB as Pending Pickup. A dispatcher assigns a driver '
-            'from FMS Driver Assignment or the Demo desk.';
+        : 'Order is Pending Pickup. After API redeploy (v2.1+), creating a '
+            'KK→Sandakan order auto-assigns the KK demo driver when zone score '
+            'matches. Until then, assign from FMS or Demo desk.';
 
     return Card(
       child: Padding(

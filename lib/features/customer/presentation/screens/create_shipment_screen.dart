@@ -263,8 +263,9 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
               const SizedBox(height: 12),
               Text(
                 Env.useDriverApi
-                    ? 'Creates an IPOSB consignment (Pending Pickup). '
-                        'A dispatcher assigns a driver next.'
+                    ? 'Creates an IPOSB consignment. The API plans hubs/route from '
+                        'origin→dest zones (and may auto-assign a pickup driver when '
+                        'a strong zone/route match exists).'
                     : 'Tip: pin Kota Kinabalu Metro → Sandakan so the Assignment '
                         'Engine can match the Sabah demo routing rule and staff seed.',
                 style: theme.textTheme.bodySmall?.copyWith(

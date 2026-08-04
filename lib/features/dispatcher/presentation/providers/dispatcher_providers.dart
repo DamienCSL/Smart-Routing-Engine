@@ -61,7 +61,11 @@ final zoneDriversProvider = FutureProvider<List<ZoneDriverSummary>>((ref) async 
   ref.watch(authStateProvider);
   try {
     if (Env.useDriverApi) {
-      return await ref.watch(dispatcherApiDataSourceProvider).getDrivers();
+      final profile = await ref.watch(dispatcherProfileProvider.future);
+      return await ref.watch(dispatcherApiDataSourceProvider).getDrivers(
+            zone: profile?.zone,
+            jobType: 'delivery',
+          );
     }
     final repo = ref.watch(dispatcherRepositoryProvider);
     if (repo == null) return const [];

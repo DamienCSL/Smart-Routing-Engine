@@ -143,29 +143,21 @@ class _TrackOrderScreenState extends ConsumerState<TrackOrderScreen> {
             else
               ...timeline.map((raw) {
                 final row = raw as Map<String, dynamic>;
-                final label = row['customerLabel']?.toString() ??
-                    row['statusCode']?.toString() ??
-                    '';
+                final code = row['statusCode']?.toString() ?? '';
+                final label = (row['customerLabel']?.toString() ?? '').trim();
+                final display = label.isNotEmpty
+                    ? label
+                    : (code.isNotEmpty
+                        ? code
+                        : 'Status update');
                 final at = row['at']?.toString() ?? '';
-                final loc = row['location']?.toString() ?? '';
-                final note = row['note']?.toString() ?? '';
-                // Location is already in the detailed title; only show time (+ note if unique).
-                final subtitleParts = <String>[
-                  if (at.isNotEmpty) at,
-                  if (note.isNotEmpty &&
-                      !label.toLowerCase().contains(note.toLowerCase()) &&
-                      note.toUpperCase() != loc.toUpperCase())
-                    note,
-                ];
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    label,
+                    display,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  subtitle: subtitleParts.isEmpty
-                      ? null
-                      : Text(subtitleParts.join(' · ')),
+                  subtitle: at.isEmpty ? null : Text(at),
                 );
               }),
           ],

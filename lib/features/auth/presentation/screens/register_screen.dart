@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/env.dart';
+import '../../../../core/constants/demo_zones.dart';
 import '../../../../core/constants/route_paths.dart';
 import '../../../../shared/enums/user_role.dart';
 import '../viewmodels/register_viewmodel.dart';
@@ -145,6 +146,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               ? const [
                                   UserRole.customer,
                                   UserRole.hubWorker,
+                                  UserRole.dispatcher,
                                 ]
                               : UserRole.registerChoices)
                           .map(
@@ -168,6 +170,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               }
                             },
                     ),
+                    if (state.needsZones) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'Preferred zones',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: DemoZones.all.map((zone) {
+                          final selected =
+                              state.preferredZones.contains(zone);
+                          return FilterChip(
+                            label: Text(DemoZones.labelOf(zone)),
+                            selected: selected,
+                            onSelected: state.isLoading
+                                ? null
+                                : (_) => ref
+                                    .read(registerViewModelProvider.notifier)
+                                    .toggleZone(zone),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     AuthTextField(
                       controller: _passwordController,

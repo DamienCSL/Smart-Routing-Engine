@@ -150,13 +150,14 @@ class DriverApiClient {
     return json;
   }
 
-  /// Register customer or driver → stores bearer token.
+  /// Register customer, driver, or dispatcher → stores bearer token.
   Future<Map<String, dynamic>> register({
     required String email,
     required String password,
     required String fullName,
     String role = 'customer',
     String? phone,
+    List<String>? preferredZones,
   }) async {
     final json = await postPublicJson('/auth/register', body: {
       'email': email.trim(),
@@ -164,6 +165,8 @@ class DriverApiClient {
       'fullName': fullName.trim(),
       'role': role,
       if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+      if (preferredZones != null && preferredZones.isNotEmpty)
+        'preferredZones': preferredZones,
     });
     final token = json['token']?.toString();
     if (token == null || token.isEmpty) {
@@ -202,6 +205,8 @@ class DriverApiClient {
     required String address,
     String origin = 'BKI',
     String dest = 'BKI',
+    String? originZone,
+    String? destinationZone,
     double weight = 1,
     int pieces = 1,
     String? phone,
@@ -212,6 +217,9 @@ class DriverApiClient {
       'address': address,
       'origin': origin,
       'dest': dest,
+      if (originZone != null && originZone.isNotEmpty) 'originZone': originZone,
+      if (destinationZone != null && destinationZone.isNotEmpty)
+        'destinationZone': destinationZone,
       'weight': weight,
       'pieces': pieces,
       if (phone != null) 'phone': phone,

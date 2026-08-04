@@ -56,6 +56,8 @@ class CreateShipmentViewModel extends StateNotifier<CreateShipmentState> {
           address: request.destinationAddress,
           origin: CustomerOrderMapper.branchFromZone(request.originZone),
           dest: CustomerOrderMapper.branchFromZone(request.destinationZone),
+          originZone: request.originZone,
+          destinationZone: request.destinationZone,
           weight: request.weightKg,
           pieces: request.packageCount,
           senderName: session?.displayName,

@@ -46,28 +46,28 @@ const TO_CN_STATUS = {
 /** Customer-facing labels (web tracking). */
 const CUSTOMER_LABEL = {
   BDE: 'Pending Pickup',
-  ACC: 'Pending Pickup',
+  ACC: 'Courier Assigned',
   PKU: 'Collected',
-  ARR: 'In Transit',
+  ARR: 'Arrived at Hub',
   GWD: 'In Transit',
-  SRT: 'In Transit',
-  HUB: 'In Transit',
-  SHB: 'To Be Delivered',
-  OFD: 'To Be Delivered',
-  DRS: 'To Be Delivered',
-  SCF: 'To Be Delivered',
-  POD: 'Signed / Delivered',
-  PCC: 'Signed / Delivered',
-  PFP: 'Signed / Delivered',
-  PCB: 'Signed / Delivered',
-  UND: 'Problematic / Delayed',
-  OVN: 'Problematic / Delayed',
-  N13: 'Problematic / Delayed',
-  N12: 'Problematic / Delayed',
-  N9: 'Problematic / Delayed',
+  SRT: 'Sorting',
+  HUB: 'At Hub',
+  SHB: 'Preparing for Delivery',
+  OFD: 'Out for Delivery',
+  DRS: 'Out for Delivery',
+  SCF: 'Ready for Self-Collection',
+  POD: 'Delivered',
+  PCC: 'Delivered',
+  PFP: 'Delivered',
+  PCB: 'Delivered',
+  UND: 'Delivery Unsuccessful',
+  OVN: 'Delivery Delayed',
+  N13: 'Delivery Delayed',
+  N12: 'Delivery Delayed',
+  N9: 'Delivery Delayed',
   RTN: 'Returning to Sender',
   RTS: 'Returning to Sender',
-  UTL: 'Problematic / Delayed',
+  UTL: 'Delivery Delayed',
   INB: 'In Transit',
   MNF: 'In Transit',
 };
@@ -111,107 +111,100 @@ function customerLabelOf(code) {
   return CUSTOMER_LABEL[key] || 'In Transit';
 }
 
-/** Detailed timeline text, e.g. "Parcel arrived at SBH325 hub". */
-function detailLabelOf(code, locId, note) {
+function friendlyPlace(locId) {
+  const loc = String(locId || '')
+    .trim()
+    .toUpperCase();
+  if (!loc) return '';
+  const known = {
+    BKI: 'Kota Kinabalu',
+    KUL: 'Kota Kinabalu',
+    SDK: 'Sandakan',
+    TWU: 'Tawau',
+    SBH325: 'Kota Kinabalu receiving hub',
+    SBH326: 'Kota Kinabalu delivery station',
+    805: 'Kota Kinabalu sorting centre',
+    'SDK-ST1': 'Sandakan station',
+    'TWU-ST1': 'Tawau station',
+  };
+  return known[loc] || loc;
+}
+
+/** Customer timeline sentence (no ops jargon / internal notes). */
+function detailLabelOf(code, locId) {
   const key = String(code || '')
     .trim()
     .toUpperCase();
-  const hub = String(locId || '')
-    .trim()
-    .toUpperCase();
-  const atHub = hub ? ` at ${hub} hub` : ' at hub';
-  const from = hub ? ` from ${hub}` : '';
-  const via = hub ? ` via ${hub}` : '';
-  const paren = hub ? ` (${hub})` : '';
+  const place = friendlyPlace(locId);
+  const at = place ? ` at our ${place}` : '';
+  const from = place ? ` from ${place}` : '';
+  const inPlace = place ? ` in ${place}` : '';
 
-  let detail;
   switch (key) {
     case 'BDE':
-      detail = 'Order created — waiting for pickup';
-      break;
+      return 'Your order has been created and is waiting for pickup';
     case 'ACC':
-      detail = hub
-        ? `Parcel assigned to courier at ${hub}`
-        : 'Parcel assigned to courier';
-      break;
+      return 'A courier has been assigned to pick up your parcel';
     case 'PKU':
-      detail = hub
-        ? `Parcel collected from seller (${hub})`
-        : 'Parcel collected from seller';
-      break;
+      return place
+        ? `Your parcel has been collected from the sender${inPlace}`
+        : 'Your parcel has been collected from the sender';
     case 'GWD':
-      detail = hub
-        ? `Parcel departed gateway (${hub})`
-        : 'Parcel departed gateway';
-      break;
+      return place
+        ? `Your parcel has left our gateway facility${inPlace}`
+        : 'Your parcel is on the way to the next facility';
     case 'ARR':
     case 'INB':
-      detail = `Parcel arrived${atHub}`;
-      break;
+      return place
+        ? `Your parcel has arrived${at}`
+        : 'Your parcel has arrived at our hub';
     case 'SRT':
     case 'MNF':
-      detail = hub
-        ? `Parcel sorting at ${hub} hub`
-        : 'Parcel sorting at hub';
-      break;
+      return place
+        ? `Your parcel is being sorted${at}`
+        : 'Your parcel is being sorted at our hub';
     case 'HUB':
-      detail = `Parcel handed over${atHub}`;
-      break;
+      return place
+        ? `Your parcel has been received${at}`
+        : 'Your parcel has been received at our hub';
     case 'SHB':
-      detail = hub
-        ? `Parcel received by storekeeper at ${hub}`
-        : 'Parcel received by storekeeper';
-      break;
+      return place
+        ? `Your parcel is at our ${place} and is being prepared for delivery`
+        : 'Your parcel is being prepared for delivery at our hub';
     case 'OFD':
-      detail = `Parcel out for delivery${from}`;
-      break;
+      return place
+        ? `Your parcel is out for delivery${from}`
+        : 'Your parcel is out for delivery';
     case 'DRS':
-      detail = hub
-        ? `Parcel with courier for delivery (${hub})`
-        : 'Parcel with courier for delivery';
-      break;
+      return 'Your parcel is with the courier for delivery';
     case 'SCF':
-      detail = hub
-        ? `Parcel ready for self-collection at ${hub}`
-        : 'Parcel ready for self-collection';
-      break;
+      return place
+        ? `Your parcel is ready for self-collection${at}`
+        : 'Your parcel is ready for self-collection';
     case 'POD':
     case 'PCC':
     case 'PFP':
     case 'PCB':
-      detail = `Parcel delivered and signed${paren}`;
-      break;
+      return 'Your parcel has been delivered successfully';
     case 'UND':
     case 'OVN':
-      detail = hub
-        ? `Delivery attempt failed at ${hub}`
-        : 'Delivery attempt failed';
-      break;
+      return place
+        ? `Delivery was unsuccessful${inPlace} — we will try again`
+        : 'Delivery was unsuccessful — we will try again';
     case 'RTN':
     case 'RTS':
-      detail = `Parcel returning to sender${via}`;
-      break;
+      return 'Your parcel is being returned to the sender';
     case 'N13':
     case 'UTL':
-      detail = 'Parcel delayed — location update pending';
-      break;
+      return 'Your parcel is delayed — we are updating the location';
     case 'N12':
     case 'N9':
-      detail = 'Parcel reported damaged';
-      break;
+      return 'There is an issue with your parcel — our team is following up';
+    case 'CAN':
+      return 'This order has been cancelled';
     default:
-      detail = customerLabelOf(key);
+      return customerLabelOf(key);
   }
-
-  const noteText = String(note || '').trim();
-  if (
-    noteText &&
-    !detail.toLowerCase().includes(noteText.toLowerCase()) &&
-    !/^(ops:|ops desk|scanned via|mobile demo|driver scan)/i.test(noteText)
-  ) {
-    detail += ` — ${noteText}`;
-  }
-  return detail;
 }
 
 function isTerminalDelivered(code) {

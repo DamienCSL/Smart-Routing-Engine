@@ -17,10 +17,15 @@ class HubWorkerApiDataSource {
   Future<({String id, String hubId, List<String> preferredZones})>
       getCurrentProfile() async {
     final json = await _api.getJson('/driver/me');
+    final zonesRaw = json['preferredZones'];
+    final zones = zonesRaw is List
+        ? zonesRaw.map((e) => e.toString()).where((e) => e.isNotEmpty).toList()
+        : <String>[];
+    final loc = (json['locId'] ?? '').toString();
     return (
       id: json['driverId'].toString(),
-      hubId: (json['locId'] ?? '').toString(),
-      preferredZones: <String>[(json['locId'] ?? '').toString()],
+      hubId: loc,
+      preferredZones: zones.isNotEmpty ? zones : (loc.isNotEmpty ? [loc] : <String>[]),
     );
   }
 

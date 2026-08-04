@@ -10,6 +10,7 @@ import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../notification/presentation/widgets/notification_bell_button.dart';
 import '../../../shipment/presentation/widgets/shipment_list_tile.dart';
 import '../providers/dispatcher_providers.dart';
+import '../widgets/assign_job_sheet.dart';
 import '../widgets/dispatcher_stats.dart';
 import '../../domain/entities/zone_driver_summary.dart';
 
@@ -147,7 +148,7 @@ class DispatcherHomeScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 24),
                             Text(
-                              'Drivers',
+                              'Drivers (zone-ranked)',
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
@@ -161,7 +162,9 @@ class DispatcherHomeScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 24),
                             Text(
-                              apiMode ? 'Unassigned jobs' : 'Zone shipments',
+                              apiMode
+                                  ? 'Unassigned jobs — tap to assign'
+                                  : 'Zone shipments',
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
@@ -188,13 +191,30 @@ class DispatcherHomeScreen extends ConsumerWidget {
                               ...shipments.map(
                                 (shipment) => ShipmentListTile(
                                   shipment: shipment,
-                                  onTap: () {
+                                  onTap: () async {
                                     if (!apiMode) {
                                       context.push(
                                         RoutePaths.dispatcherShipmentDetail(
                                           shipment.id,
                                         ),
                                       );
+                                      return;
+                                    }
+                                    final ok = await showAssignJobSheet(
+                                      context,
+                                      shipment: shipment,
+                                    );
+                                    if (ok == true && context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Assigned ${shipment.trackingNumber}',
+                                          ),
+                                        ),
+                                      );
+                                      ref.invalidate(zoneShipmentsProvider);
+                                      ref.invalidate(zoneDriversProvider);
                                     }
                                   },
                                 ),
@@ -232,12 +252,19 @@ class _DriverChips extends StatelessWidget {
         final label = d.driverName?.isNotEmpty == true
             ? '${d.driverName} · ${d.vehicleType}'
             : '${d.vehiclePlate} · ${d.vehicleType}';
+        final zones = d.preferredZones.isNotEmpty
+            ? ' · ${d.preferredZones.join(',')}'
+            : '';
         return Chip(
           avatar: Icon(
-            d.isAvailable ? Icons.check_circle : Icons.pause_circle_outline,
+            d.zoneMatch
+                ? Icons.star
+                : d.isAvailable
+                    ? Icons.check_circle
+                    : Icons.pause_circle_outline,
             size: 18,
           ),
-          label: Text(label),
+          label: Text('$label$zones${d.zoneMatch ? ' · recommended' : ''}'),
         );
       }).toList(),
     );

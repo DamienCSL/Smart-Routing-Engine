@@ -37,13 +37,13 @@ class ShipmentStatusChip extends StatelessWidget {
     if (Env.useDriverApi && !Env.isSupabaseConfigured) {
       return switch (status) {
         ShipmentStatus.pending => 'Pending Pickup',
-        ShipmentStatus.assigned => 'Accepted',
+        ShipmentStatus.assigned => 'Courier Assigned',
         ShipmentStatus.pickedUp => 'Collected',
         ShipmentStatus.inTransit => 'In Transit',
-        ShipmentStatus.outForDelivery => 'To Be Delivered',
-        ShipmentStatus.delivered => 'Signed / Delivered',
+        ShipmentStatus.outForDelivery => 'Out for Delivery',
+        ShipmentStatus.delivered => 'Delivered',
         ShipmentStatus.cancelled => 'Cancelled',
-        ShipmentStatus.failed => 'Problematic / Delayed',
+        ShipmentStatus.failed => 'Delivery Delayed',
         _ => status.label,
       };
     }

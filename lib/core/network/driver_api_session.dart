@@ -19,6 +19,7 @@ class DriverApiSession {
     this.driverId,
     this.dispatcherId,
     this.custAcNo,
+    this.preferredZones = const [],
   });
 
   final String uid;
@@ -31,6 +32,26 @@ class DriverApiSession {
   final int? driverId;
   final int? dispatcherId;
   final String? custAcNo;
+  final List<String> preferredZones;
+
+  DriverApiSession copyWith({
+    List<String>? preferredZones,
+    String? displayName,
+  }) {
+    return DriverApiSession(
+      uid: uid,
+      displayName: displayName ?? this.displayName,
+      token: token,
+      role: role,
+      email: email,
+      userId: userId,
+      firebaseUid: firebaseUid,
+      driverId: driverId,
+      dispatcherId: dispatcherId,
+      custAcNo: custAcNo,
+      preferredZones: preferredZones ?? this.preferredZones,
+    );
+  }
 }
 
 class DriverApiSessionNotifier extends StateNotifier<DriverApiSession?> {
@@ -65,18 +86,40 @@ class DriverApiSessionNotifier extends StateNotifier<DriverApiSession?> {
     required String fullName,
     required UserRole role,
     String? phone,
+    List<String>? preferredZones,
   }) async {
     final apiRole = role == UserRole.hubWorker || role == UserRole.driver
         ? 'driver'
-        : 'customer';
+        : role == UserRole.dispatcher
+            ? 'dispatcher'
+            : 'customer';
     final json = await _api.register(
       email: email,
       password: password,
       fullName: fullName,
       role: apiRole,
       phone: phone,
+      preferredZones: preferredZones,
     );
     state = _sessionFromAuthJson(json);
+  }
+
+  Future<void> updatePreferredZones(List<String> zones) async {
+    final session = state;
+    if (session == null) return;
+    if (session.role == UserRole.dispatcher) {
+      await _api.patchJson('/dispatcher/me', body: {
+        'preferredZones': zones,
+      });
+    } else if (session.role == UserRole.hubWorker ||
+        session.role == UserRole.driver) {
+      await _api.patchJson('/driver/me', body: {
+        'preferredZones': zones,
+      });
+    } else {
+      return;
+    }
+    state = session.copyWith(preferredZones: zones);
   }
 
   Future<void> signInWithFirebaseToken({
@@ -140,7 +183,18 @@ class DriverApiSessionNotifier extends StateNotifier<DriverApiSession?> {
           ? null
           : int.tryParse('${map['dispatcherId']}'),
       custAcNo: map['custAcNo']?.toString(),
+      preferredZones: _parseZones(map['preferredZones']),
     );
+  }
+
+  List<String> _parseZones(dynamic raw) {
+    if (raw is List) {
+      return raw.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
+    }
+    if (raw is String && raw.trim().isNotEmpty) {
+      return raw.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+    return const [];
   }
 }
 

@@ -1,4 +1,5 @@
 /// Frozen SOP status codes (see integration/STATUS_MAP.md).
+/// Includes Yoyi / drop-point self-collection path (CPA → SCN → CPI → POD).
 abstract final class IposbStatusMap {
   static const accept = 'ACC';
   static const pickedUp = 'PKU';
@@ -12,6 +13,9 @@ abstract final class IposbStatusMap {
   static const undelivered = 'UND';
   static const overnight = 'OVN';
   static const selfCollect = 'SCF';
+  static const cpArrival = 'CPA';
+  static const cpNotify = 'SCN';
+  static const cpInbound = 'CPI';
   static const returnReg = 'RTN';
 
   static const pipelineActions = [
@@ -32,7 +36,21 @@ abstract final class IposbStatusMap {
     outForDelivery,
     delivered,
     undelivered,
+    selfCollect,
+    cpArrival,
   ];
+
+  static const yoyiActions = [cpArrival, cpNotify, cpInbound, selfCollect, delivered];
+
+  /// Yoyi abnormal outbound Y1–Y6 → suggested next IPOSB status.
+  static const yoyiAbnormalNext = <String, String>{
+    'Y1': returnReg, // reject / refuse pay
+    'Y2': returnReg, // overdue self-collect
+    'Y3': outForDelivery, // wants home delivery
+    'Y4': undelivered, // other
+    'Y5': 'N12', // damaged
+    'Y6': 'N13', // lost
+  };
 
   static String labelOf(String code) => switch (code.toUpperCase()) {
         accept => 'Accept / assign',
@@ -46,84 +64,111 @@ abstract final class IposbStatusMap {
         delivered => 'Delivered (POD)',
         undelivered => 'Undelivered',
         overnight => 'Overnight scan',
-        selfCollect => 'Self-collection',
+        selfCollect => 'Self-collection (ready)',
+        cpArrival => 'Yoyi CP arrival (consult)',
+        cpNotify => 'Self-collect notice sent',
+        cpInbound => 'Yoyi CP inbound (shelved)',
         returnReg => 'Return registration',
         _ => code,
       };
 
-  /// Customer-facing tracking labels (web + future customer app).
+  /// Customer-facing short labels (chips / summary).
   static String customerLabelOf(String code) => switch (code.toUpperCase()) {
-        'BDE' || accept => 'Pending Pickup',
+        'BDE' => 'Pending Pickup',
+        accept => 'Courier Assigned',
         pickedUp => 'Collected',
-        arrivedHub || 'GWD' || atHub || sorted || 'INB' || 'MNF' => 'In Transit',
-        storekeeper || outForDelivery || withCourier || selfCollect =>
-          'To Be Delivered',
-        delivered || 'PCC' || 'PFP' || 'PCB' => 'Signed / Delivered',
-        undelivered || overnight || 'N13' || 'N12' || 'N9' || 'UTL' =>
-          'Problematic / Delayed',
+        arrivedHub => 'Arrived at Hub',
+        sorted => 'Sorting',
+        atHub => 'At Hub',
+        'GWD' || 'INB' || 'MNF' => 'In Transit',
+        storekeeper => 'Preparing for Delivery',
+        outForDelivery || withCourier => 'Out for Delivery',
+        selfCollect || cpInbound => 'Ready for Self-Collection',
+        cpArrival => 'At Collection Point',
+        cpNotify => 'Self-Collection Notice Sent',
+        delivered || 'PCC' || 'PFP' || 'PCB' => 'Delivered',
+        undelivered => 'Delivery Unsuccessful',
+        overnight || 'N13' || 'N12' || 'N9' || 'UTL' => 'Delivery Delayed',
         returnReg || 'RTS' => 'Returning to Sender',
         _ => 'In Transit',
       };
 
-  /// Detailed timeline sentence, e.g. "Parcel arrived at SBH325 hub".
+  /// Customer timeline sentence (no ops codes / internal notes).
   static String detailLabelOf(
     String code, {
     String? location,
     String? note,
   }) {
     final key = code.toUpperCase().trim();
-    final hub = (location ?? '').toUpperCase().trim();
-    final atHub = hub.isNotEmpty ? ' at $hub hub' : ' at hub';
-    final from = hub.isNotEmpty ? ' from $hub' : '';
-    final via = hub.isNotEmpty ? ' via $hub' : '';
-    final paren = hub.isNotEmpty ? ' ($hub)' : '';
+    final place = friendlyPlace(location);
+    final at = place.isNotEmpty ? ' at our $place' : '';
+    final from = place.isNotEmpty ? ' from $place' : '';
+    final inPlace = place.isNotEmpty ? ' in $place' : '';
 
-    var detail = switch (key) {
-      'BDE' => 'Order created — waiting for pickup',
-      'ACC' => hub.isNotEmpty
-          ? 'Parcel assigned to courier at $hub'
-          : 'Parcel assigned to courier',
-      'PKU' => hub.isNotEmpty
-          ? 'Parcel collected from seller ($hub)'
-          : 'Parcel collected from seller',
-      'GWD' => hub.isNotEmpty
-          ? 'Parcel departed gateway ($hub)'
-          : 'Parcel departed gateway',
-      'ARR' || 'INB' => 'Parcel arrived$atHub',
-      'SRT' || 'MNF' => hub.isNotEmpty
-          ? 'Parcel sorting at $hub hub'
-          : 'Parcel sorting at hub',
-      'HUB' => 'Parcel handed over$atHub',
-      'SHB' => hub.isNotEmpty
-          ? 'Parcel received by storekeeper at $hub'
-          : 'Parcel received by storekeeper',
-      'OFD' => 'Parcel out for delivery$from',
-      'DRS' => hub.isNotEmpty
-          ? 'Parcel with courier for delivery ($hub)'
-          : 'Parcel with courier for delivery',
-      'SCF' => hub.isNotEmpty
-          ? 'Parcel ready for self-collection at $hub'
-          : 'Parcel ready for self-collection',
-      'POD' || 'PCC' || 'PFP' || 'PCB' => 'Parcel delivered and signed$paren',
-      'UND' || 'OVN' => hub.isNotEmpty
-          ? 'Delivery attempt failed at $hub'
-          : 'Delivery attempt failed',
-      'RTN' || 'RTS' => 'Parcel returning to sender$via',
-      'N13' || 'UTL' => 'Parcel delayed — location update pending',
-      'N12' || 'N9' => 'Parcel reported damaged',
+    return switch (key) {
+      'BDE' => 'Your order has been created and is waiting for pickup',
+      'ACC' => 'A courier has been assigned to pick up your parcel',
+      'PKU' => place.isNotEmpty
+          ? 'Your parcel has been collected from the sender$inPlace'
+          : 'Your parcel has been collected from the sender',
+      'GWD' => place.isNotEmpty
+          ? 'Your parcel has left our gateway facility$inPlace'
+          : 'Your parcel is on the way to the next facility',
+      'ARR' || 'INB' => place.isNotEmpty
+          ? 'Your parcel has arrived$at'
+          : 'Your parcel has arrived at our hub',
+      'SRT' || 'MNF' => place.isNotEmpty
+          ? 'Your parcel is being sorted$at'
+          : 'Your parcel is being sorted at our hub',
+      'HUB' => place.isNotEmpty
+          ? 'Your parcel has been received$at'
+          : 'Your parcel has been received at our hub',
+      'SHB' => place.isNotEmpty
+          ? 'Your parcel is at our $place and is being prepared for delivery'
+          : 'Your parcel is being prepared for delivery at our hub',
+      'OFD' => place.isNotEmpty
+          ? 'Your parcel is out for delivery$from'
+          : 'Your parcel is out for delivery',
+      'DRS' => 'Your parcel is with the courier for delivery',
+      'SCF' => place.isNotEmpty
+          ? 'Your parcel is ready for self-collection$at'
+          : 'Your parcel is ready for self-collection',
+      'CPA' => place.isNotEmpty
+          ? 'Your parcel has arrived at the collection point$inPlace — we are confirming with you'
+          : 'Your parcel has arrived at the collection point — we are confirming with you',
+      'SCN' => 'We have sent you a self-collection notice for your parcel',
+      'CPI' => place.isNotEmpty
+          ? 'Your parcel is ready for pickup at the collection point$inPlace'
+          : 'Your parcel is ready for pickup at the collection point',
+      'POD' || 'PCC' || 'PFP' || 'PCB' =>
+        'Your parcel has been delivered successfully',
+      'UND' || 'OVN' => place.isNotEmpty
+          ? 'Delivery was unsuccessful$inPlace — we will try again'
+          : 'Delivery was unsuccessful — we will try again',
+      'RTN' || 'RTS' => 'Your parcel is being returned to the sender',
+      'N13' || 'UTL' =>
+        'Your parcel is delayed — we are updating the location',
+      'N12' || 'N9' =>
+        'There is an issue with your parcel — our team is following up',
+      'CAN' => 'This order has been cancelled',
       _ => customerLabelOf(key),
     };
+  }
 
-    final noteText = (note ?? '').trim();
-    if (noteText.isNotEmpty &&
-        !detail.toLowerCase().contains(noteText.toLowerCase()) &&
-        !RegExp(
-          r'^(ops:|ops desk|scanned via|mobile demo|driver scan)',
-          caseSensitive: false,
-        ).hasMatch(noteText)) {
-      detail = '$detail — $noteText';
-    }
-    return detail;
+  static String friendlyPlace(String? location) {
+    final loc = (location ?? '').toUpperCase().trim();
+    if (loc.isEmpty) return '';
+    return switch (loc) {
+      'BKI' || 'KUL' => 'Kota Kinabalu',
+      'SDK' => 'Sandakan',
+      'TWU' => 'Tawau',
+      'SBH325' => 'Kota Kinabalu receiving hub',
+      'SBH326' => 'Kota Kinabalu delivery station',
+      '805' => 'Kota Kinabalu sorting centre',
+      'SDK-ST1' => 'Sandakan station',
+      'TWU-ST1' => 'Tawau station',
+      _ => loc,
+    };
   }
 
   /// Default hub when scan omits location (SOP KK demo flow).
@@ -136,10 +181,11 @@ abstract final class IposbStatusMap {
     final from = (origin ?? 'BKI').toUpperCase().trim();
     final to = (dest ?? from).toUpperCase().trim();
     return switch (key) {
-      'ARR' || 'SHB' || 'HUB' || 'SCF' => 'SBH325',
+      'ARR' || 'SHB' || 'HUB' || 'SCF' || 'CPA' || 'CPI' || 'SCN' => 'SBH325',
       'SRT' || 'MNF' => '805',
       'PKU' || 'ACC' || 'BDE' || 'GWD' => from.isNotEmpty ? from : 'BKI',
-      'OFD' || 'DRS' || 'POD' || 'UND' || 'OVN' => to.isNotEmpty ? to : 'BKI',
+      'OFD' || 'DRS' || 'POD' || 'UND' || 'OVN' || 'RTN' =>
+        to.isNotEmpty ? to : 'BKI',
       _ => to.isNotEmpty ? to : 'BKI',
     };
   }

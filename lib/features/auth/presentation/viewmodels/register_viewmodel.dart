@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/env.dart';
+import '../../../../core/constants/demo_zones.dart';
 import '../../../../core/network/driver_api_session.dart';
 import '../../../../shared/enums/user_role.dart';
 import '../providers/auth_providers.dart';
@@ -10,22 +11,31 @@ class RegisterState {
     this.isLoading = false,
     this.errorMessage,
     this.selectedRole = UserRole.customer,
+    this.preferredZones = const [],
   });
 
   final bool isLoading;
   final String? errorMessage;
   final UserRole selectedRole;
+  final List<String> preferredZones;
+
+  bool get needsZones =>
+      selectedRole == UserRole.hubWorker ||
+      selectedRole == UserRole.driver ||
+      selectedRole == UserRole.dispatcher;
 
   RegisterState copyWith({
     bool? isLoading,
     String? errorMessage,
     UserRole? selectedRole,
+    List<String>? preferredZones,
     bool clearError = false,
   }) {
     return RegisterState(
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       selectedRole: selectedRole ?? this.selectedRole,
+      preferredZones: preferredZones ?? this.preferredZones,
     );
   }
 }
@@ -36,7 +46,20 @@ class RegisterViewModel extends StateNotifier<RegisterState> {
   final Ref _ref;
 
   void setRole(UserRole role) {
-    state = state.copyWith(selectedRole: role);
+    state = state.copyWith(
+      selectedRole: role,
+      preferredZones: role == UserRole.customer ? const [] : state.preferredZones,
+    );
+  }
+
+  void toggleZone(String zone) {
+    final next = [...state.preferredZones];
+    if (next.contains(zone)) {
+      next.remove(zone);
+    } else {
+      next.add(zone);
+    }
+    state = state.copyWith(preferredZones: next);
   }
 
   Future<bool> signUp({
@@ -51,16 +74,21 @@ class RegisterViewModel extends StateNotifier<RegisterState> {
 
     try {
       if (Env.useDriverApi && !Env.isSupabaseConfigured) {
-        final role = state.selectedRole == UserRole.hubWorker ||
-                state.selectedRole == UserRole.driver
-            ? UserRole.hubWorker
-            : UserRole.customer;
+        if (state.needsZones && state.preferredZones.isEmpty) {
+          state = state.copyWith(
+            errorMessage: 'Select at least one preferred zone',
+          );
+          return false;
+        }
+        final role = state.selectedRole;
         await _ref.read(driverApiSessionProvider.notifier).signUp(
               email: email,
               password: password,
               fullName: fullName,
               role: role,
               phone: phone,
+              preferredZones:
+                  state.needsZones ? state.preferredZones : null,
             );
         _ref.invalidate(currentUserProfileProvider);
         return true;
@@ -99,3 +127,6 @@ final registerViewModelProvider =
     StateNotifierProvider<RegisterViewModel, RegisterState>((ref) {
   return RegisterViewModel(ref);
 });
+
+/// Zones shown on register / profile pickers.
+List<String> get registerZoneChoices => DemoZones.all;

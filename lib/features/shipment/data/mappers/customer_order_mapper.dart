@@ -51,7 +51,7 @@ abstract final class CustomerOrderMapper {
     if (const {'UND', 'OVN', 'N13', 'N12', 'N9', 'UTL'}.contains(upper)) {
       return ShipmentStatus.failed;
     }
-    if (const {'OFD', 'DRS', 'SHB', 'SCF'}.contains(upper)) {
+    if (const {'OFD', 'DRS', 'SHB', 'SCF', 'CPA', 'CPI', 'SCN'}.contains(upper)) {
       return ShipmentStatus.outForDelivery;
     }
     if (upper == 'PKU') return ShipmentStatus.pickedUp;
@@ -61,9 +61,18 @@ abstract final class CustomerOrderMapper {
     final label = IposbStatusMap.customerLabelOf(upper);
     return switch (label) {
       'Pending Pickup' => ShipmentStatus.pending,
+      'Courier Assigned' || 'Assigned — awaiting pickup' =>
+        ShipmentStatus.assigned,
       'Collected' => ShipmentStatus.pickedUp,
-      'To Be Delivered' => ShipmentStatus.outForDelivery,
-      'Signed / Delivered' => ShipmentStatus.delivered,
+      'Out for Delivery' ||
+      'To Be Delivered' ||
+      'Ready for Self-Collection' ||
+      'At Collection Point' ||
+      'Self-Collection Notice Sent' ||
+      'Preparing for Delivery' => ShipmentStatus.outForDelivery,
+      'Delivered' || 'Signed / Delivered' => ShipmentStatus.delivered,
+      'Delivery Unsuccessful' ||
+      'Delivery Delayed' ||
       'Problematic / Delayed' => ShipmentStatus.failed,
       _ => ShipmentStatus.inTransit,
     };

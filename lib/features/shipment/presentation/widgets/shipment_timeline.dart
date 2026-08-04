@@ -50,13 +50,17 @@ class ShipmentTimeline extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ShipmentStatusChip(status: entries[i].status),
+                      ShipmentStatusChip(
+                        status: entries[i].status,
+                        labelOverride: entries[i].shortLabel,
+                      ),
                       const SizedBox(height: 6),
                       Text(
                         entries[i].description,
                         style: theme.textTheme.bodyMedium,
                       ),
-                      if (entries[i].location != null) ...[
+                      if (entries[i].location != null &&
+                          entries[i].location!.trim().isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
                           entries[i].location!,

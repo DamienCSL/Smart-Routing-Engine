@@ -10,6 +10,7 @@ class ShipmentHistoryEntry extends Equatable {
     required this.status,
     required this.description,
     required this.createdAt,
+    this.shortLabel,
     this.location,
     this.performedBy,
   });
@@ -17,7 +18,10 @@ class ShipmentHistoryEntry extends Equatable {
   final String id;
   final String shipmentId;
   final ShipmentStatus status;
+  /// Customer-facing full sentence.
   final String description;
+  /// Short chip label (e.g. "Out for Delivery").
+  final String? shortLabel;
   final String? location;
   final String? performedBy;
   final DateTime createdAt;

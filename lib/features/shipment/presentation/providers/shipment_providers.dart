@@ -9,6 +9,7 @@ import '../../../assignment_engine/data/routing_assignment_engine.dart';
 import '../../../assignment_engine/domain/assignment_engine.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../data/datasources/shipment_remote_datasource.dart';
+import '../../../../core/constants/iposb_status_map.dart';
 import '../../data/mappers/customer_order_mapper.dart';
 import '../../data/repositories/shipment_repository_impl.dart';
 import '../../domain/entities/shipment.dart';
@@ -110,15 +111,22 @@ final shipmentHistoryProvider =
         if (raw is! Map) continue;
         final row = Map<String, dynamic>.from(raw);
         final code = (row['statusCode'] ?? '').toString();
-        final label = (row['customerLabel'] ?? code).toString();
-        final note = (row['note'] ?? '').toString();
+        final label = (row['customerLabel'] ?? '').toString().trim().isNotEmpty
+            ? (row['customerLabel'] ?? '').toString()
+            : IposbStatusMap.detailLabelOf(
+                code,
+                location: row['location']?.toString(),
+              );
+        final short = (row['shortLabel'] ?? '').toString().trim().isNotEmpty
+            ? (row['shortLabel'] ?? '').toString()
+            : IposbStatusMap.customerLabelOf(code);
         entries.add(
           ShipmentHistoryEntry(
             id: '$shipmentId-$i',
             shipmentId: shipmentId,
             status: CustomerOrderMapper.statusFromCnCode(code),
-            description: note.isNotEmpty ? '$label — $note' : label,
-            location: row['location']?.toString(),
+            description: label,
+            shortLabel: short,
             performedBy: row['by']?.toString(),
             createdAt: DateTime.tryParse((row['at'] ?? '').toString()) ??
                 DateTime.now(),

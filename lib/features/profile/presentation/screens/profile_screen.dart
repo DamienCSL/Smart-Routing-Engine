@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/env.dart';
+import '../../../../core/constants/demo_zones.dart';
 import '../../../../core/constants/route_paths.dart';
 import '../../../../core/network/driver_api_session.dart';
+import '../../../../shared/enums/user_role.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/domain/entities/user_profile.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -23,6 +25,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late final TextEditingController _phoneController;
   bool _isEditing = false;
   bool _isSaving = false;
+  List<String> _preferredZones = const [];
 
   @override
   void initState() {
@@ -41,12 +44,50 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _populateFields(UserProfile profile) {
     _nameController.text = profile.fullName;
     _phoneController.text = profile.phone ?? '';
+    final session = ref.read(driverApiSessionProvider);
+    _preferredZones = List<String>.from(session?.preferredZones ?? const []);
+  }
+
+  bool get _canEditZones {
+    final session = ref.read(driverApiSessionProvider);
+    if (session == null) return false;
+    return session.role == UserRole.dispatcher ||
+        session.role == UserRole.hubWorker ||
+        session.role == UserRole.driver;
   }
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (Env.useDriverApi && !Env.isSupabaseConfigured) {
+      if (_canEditZones) {
+        if (_preferredZones.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Select at least one preferred zone')),
+          );
+          return;
+        }
+        setState(() => _isSaving = true);
+        try {
+          await ref
+              .read(driverApiSessionProvider.notifier)
+              .updatePreferredZones(_preferredZones);
+          if (!mounted) return;
+          ref.invalidate(currentUserProfileProvider);
+          setState(() => _isEditing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Preferred zones updated')),
+          );
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$e')),
+          );
+        } finally {
+          if (mounted) setState(() => _isSaving = false);
+        }
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile is managed in IPOSB ops (t_driver).')),
       );
@@ -187,6 +228,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               value: profile.phone ?? '—',
                               icon: Icons.phone_outlined,
                             ),
+                          ],
+                          if (Env.useDriverApi && _canEditZones) ...[
+                            const Divider(height: 24),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Preferred zones',
+                                style: theme.textTheme.titleSmall,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (_isEditing)
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: DemoZones.all.map((zone) {
+                                  final selected =
+                                      _preferredZones.contains(zone);
+                                  return FilterChip(
+                                    label: Text(DemoZones.labelOf(zone)),
+                                    selected: selected,
+                                    onSelected: (_) {
+                                      setState(() {
+                                        final next = [..._preferredZones];
+                                        if (selected) {
+                                          next.remove(zone);
+                                        } else {
+                                          next.add(zone);
+                                        }
+                                        _preferredZones = next;
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              )
+                            else
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  _preferredZones.isEmpty
+                                      ? '—'
+                                      : _preferredZones
+                                          .map(DemoZones.labelOf)
+                                          .join(', '),
+                                ),
+                              ),
                           ],
                           const Divider(height: 24),
                           _ProfileField(
