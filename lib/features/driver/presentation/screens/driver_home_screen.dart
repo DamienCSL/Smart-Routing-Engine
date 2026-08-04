@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/route_paths.dart';
+import '../../../../core/utils/provider_refresh.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../notification/presentation/widgets/notification_bell_button.dart';
@@ -90,9 +91,9 @@ class _TaskList extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         if (type == DriverTaskType.pickup) {
-          ref.invalidate(pickupTasksProvider);
+          await refreshAndWait(ref, pickupTasksProvider.future);
         } else {
-          ref.invalidate(deliveryTasksProvider);
+          await refreshAndWait(ref, deliveryTasksProvider.future);
         }
       },
       child: tasksAsync.when(

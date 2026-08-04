@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/route_paths.dart';
+import '../../../../core/utils/provider_refresh.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../notification/presentation/widgets/notification_bell_button.dart';
@@ -22,6 +23,13 @@ class CustomerHomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('My Shipments'),
         actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh),
+            onPressed: () async {
+              await refreshAndWait(ref, customerShipmentsProvider.future);
+            },
+          ),
           const NotificationBellButton(),
           IconButton(
             icon: const Icon(Icons.person_outlined),
@@ -40,10 +48,9 @@ class CustomerHomeScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (profile) {
           return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(customerShipmentsProvider);
-            },
+            onRefresh: () => refreshAndWait(ref, customerShipmentsProvider.future),
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
               children: [
                 Text(
@@ -54,7 +61,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Create and track parcels in realtime',
+                  'Pull down to refresh status · auto-updates every ~12s',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -69,7 +76,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                     padding: const EdgeInsets.only(top: 24),
                     child: Text(
                       'Could not load shipments.\n$e\n\n'
-                      'Make sure you ran 001, 002, and 003 SQL migrations.',
+                      'Check API URL and login session.',
                       style: TextStyle(color: theme.colorScheme.error),
                     ),
                   ),

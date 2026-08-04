@@ -42,6 +42,7 @@ final shipmentRepositoryProvider = Provider<ShipmentRepository>((ref) {
 });
 
 /// List of the signed-in customer's shipments.
+/// API mode polls so status changes from driver/dispatcher scans show up.
 final customerShipmentsProvider = StreamProvider<List<Shipment>>((ref) {
   ref.watch(authStateProvider);
 
@@ -51,12 +52,21 @@ final customerShipmentsProvider = StreamProvider<List<Shipment>>((ref) {
       return Stream.value(const <Shipment>[]);
     }
     final api = ref.watch(driverApiClientProvider);
-    return Stream.fromFuture(() async {
+
+    Future<List<Shipment>> load() async {
       final orders = await api.listCustomerOrders();
       return orders
           .map((o) => CustomerOrderMapper.fromApi(o, customerId: session.uid))
           .toList();
-    }());
+    }
+
+    Stream<List<Shipment>> poll() async* {
+      yield await load();
+      yield* Stream.periodic(const Duration(seconds: 12))
+          .asyncMap((_) => load());
+    }
+
+    return poll();
   }
 
   final auth = ref.watch(authRepositoryProvider);

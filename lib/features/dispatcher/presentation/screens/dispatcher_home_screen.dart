@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/config/env.dart';
 import '../../../../core/constants/demo_zones.dart';
 import '../../../../core/constants/route_paths.dart';
+import '../../../../core/utils/provider_refresh.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../notification/presentation/widgets/notification_bell_button.dart';
@@ -38,10 +39,12 @@ class DispatcherHomeScreen extends ConsumerWidget {
             ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.invalidate(dispatcherProfileProvider);
-              ref.invalidate(zoneShipmentsProvider);
-              ref.invalidate(zoneDriversProvider);
+            onPressed: () async {
+              await Future.wait([
+                refreshAndWait(ref, zoneShipmentsProvider.future),
+                refreshAndWait(ref, zoneDriversProvider.future),
+                refreshAndWait(ref, dispatcherProfileProvider.future),
+              ]);
             },
           ),
           if (!apiMode) const NotificationBellButton(),
@@ -73,10 +76,13 @@ class DispatcherHomeScreen extends ConsumerWidget {
 
               return RefreshIndicator(
                 onRefresh: () async {
-                  ref.invalidate(zoneShipmentsProvider);
-                  ref.invalidate(zoneDriversProvider);
+                  await Future.wait([
+                    refreshAndWait(ref, zoneShipmentsProvider.future),
+                    refreshAndWait(ref, zoneDriversProvider.future),
+                  ]);
                 },
                 child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   children: [
                     Text(
@@ -89,7 +95,8 @@ class DispatcherHomeScreen extends ConsumerWidget {
                     Text(
                       apiMode
                           ? 'Branch ${dispatcher.hubId ?? '—'} · '
-                              '${DemoZones.labelOf(dispatcher.zone)}'
+                              '${DemoZones.labelOf(dispatcher.zone)}\n'
+                              'Pull down to refresh · auto-updates every ~12s'
                           : 'Zone: ${DemoZones.labelOf(dispatcher.zone)}',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,

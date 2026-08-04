@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/config/env.dart';
 import '../../../../core/constants/demo_zones.dart';
 import '../../../../core/constants/route_paths.dart';
+import '../../../../core/utils/provider_refresh.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../driver/domain/entities/driver_task.dart';
@@ -157,9 +158,9 @@ class _TaskList extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         if (type == DriverTaskType.pickup) {
-          ref.invalidate(hubPickupTasksProvider);
+          await refreshAndWait(ref, hubPickupTasksProvider.future);
         } else {
-          ref.invalidate(hubDeliveryTasksProvider);
+          await refreshAndWait(ref, hubDeliveryTasksProvider.future);
         }
       },
       child: tasksAsync.when(

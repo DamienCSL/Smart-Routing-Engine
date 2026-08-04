@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/utils/provider_refresh.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../shipment/presentation/providers/shipment_providers.dart';
 import '../../../shipment/presentation/widgets/assignment_summary_card.dart';
@@ -13,6 +14,13 @@ class ShipmentDetailScreen extends ConsumerWidget {
   const ShipmentDetailScreen({super.key, required this.shipmentId});
 
   final String shipmentId;
+
+  Future<void> _refresh(WidgetRef ref) async {
+    await Future.wait([
+      refreshAndWait(ref, shipmentDetailProvider(shipmentId).future),
+      refreshAndWait(ref, shipmentHistoryProvider(shipmentId).future),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,10 +35,7 @@ class ShipmentDetailScreen extends ConsumerWidget {
           IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.invalidate(shipmentDetailProvider(shipmentId));
-              ref.invalidate(shipmentHistoryProvider(shipmentId));
-            },
+            onPressed: () => _refresh(ref),
           ),
         ],
       ),
@@ -42,102 +47,106 @@ class ShipmentDetailScreen extends ConsumerWidget {
             return const Center(child: Text('Shipment not found'));
           }
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SelectableText(
-                              shipment.trackingNumber,
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
+          return RefreshIndicator(
+            onRefresh: () => _refresh(ref),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SelectableText(
+                                shipment.trackingNumber,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
-                          IconButton(
-                            tooltip: 'Copy tracking number',
-                            icon: const Icon(Icons.copy, size: 20),
-                            onPressed: () async {
-                              await Clipboard.setData(
-                                ClipboardData(text: shipment.trackingNumber),
-                              );
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Tracking number copied'),
-                                  ),
+                            IconButton(
+                              tooltip: 'Copy tracking number',
+                              icon: const Icon(Icons.copy, size: 20),
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  ClipboardData(text: shipment.trackingNumber),
                                 );
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      ShipmentStatusChip(status: shipment.status),
-                      const SizedBox(height: 16),
-                      _InfoRow(
-                        label: 'Route',
-                        value: shipment.routeLabel,
-                      ),
-                      _InfoRow(
-                        label: 'From',
-                        value:
-                            '${shipment.originAddress}, ${shipment.originCity}',
-                      ),
-                      _InfoRow(
-                        label: 'To',
-                        value:
-                            '${shipment.destinationAddress}, ${shipment.destinationCity}',
-                      ),
-                      _InfoRow(
-                        label: 'Package',
-                        value:
-                            '${shipment.packageCount} pkg · ${shipment.weightKg} kg'
-                            '${shipment.packageDescription != null ? ' · ${shipment.packageDescription}' : ''}',
-                      ),
-                      _InfoRow(
-                        label: 'Created',
-                        value: DateFormat.yMMMd()
-                            .add_jm()
-                            .format(shipment.createdAt.toLocal()),
-                      ),
-                      if (shipment.eta != null)
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Tracking number copied'),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ShipmentStatusChip(status: shipment.status),
+                        const SizedBox(height: 16),
                         _InfoRow(
-                          label: 'ETA',
+                          label: 'Route',
+                          value: shipment.routeLabel,
+                        ),
+                        _InfoRow(
+                          label: 'From',
+                          value:
+                              '${shipment.originAddress}, ${shipment.originCity}',
+                        ),
+                        _InfoRow(
+                          label: 'To',
+                          value:
+                              '${shipment.destinationAddress}, ${shipment.destinationCity}',
+                        ),
+                        _InfoRow(
+                          label: 'Package',
+                          value:
+                              '${shipment.packageCount} pkg · ${shipment.weightKg} kg'
+                              '${shipment.packageDescription != null ? ' · ${shipment.packageDescription}' : ''}',
+                        ),
+                        _InfoRow(
+                          label: 'Created',
                           value: DateFormat.yMMMd()
                               .add_jm()
-                              .format(shipment.eta!.toLocal()),
+                              .format(shipment.createdAt.toLocal()),
                         ),
-                    ],
+                        if (shipment.eta != null)
+                          _InfoRow(
+                            label: 'ETA',
+                            value: DateFormat.yMMMd()
+                                .add_jm()
+                                .format(shipment.eta!.toLocal()),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              AssignmentSummaryCard(shipment: shipment),
-              const SizedBox(height: 24),
-              Text(
-                'Timeline',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+                const SizedBox(height: 24),
+                AssignmentSummaryCard(shipment: shipment),
+                const SizedBox(height: 24),
+                Text(
+                  'Timeline',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              historyAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: AppLoadingIndicator(),
+                const SizedBox(height: 12),
+                historyAsync.when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: AppLoadingIndicator(),
+                  ),
+                  error: (e, _) => Text('Failed to load history: $e'),
+                  data: (entries) => ShipmentTimeline(entries: entries),
                 ),
-                error: (e, _) => Text('Failed to load history: $e'),
-                data: (entries) => ShipmentTimeline(entries: entries),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),

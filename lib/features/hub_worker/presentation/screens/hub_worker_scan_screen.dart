@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/constants/iposb_status_map.dart';
 import '../../../../core/constants/route_paths.dart';
 import '../../../../core/network/driver_api_providers.dart';
+import '../../../../core/utils/provider_refresh.dart';
 import '../providers/hub_worker_providers.dart';
 
 /// Scan CN barcode/QR, then post the next allowed SOP scan.
@@ -100,8 +101,10 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
           'locId': IposbStatusMap.defaultLocForStatus(status),
         },
       );
-      ref.invalidate(hubPickupTasksProvider);
-      ref.invalidate(hubDeliveryTasksProvider);
+      await Future.wait([
+        refreshAndWait(ref, hubPickupTasksProvider.future),
+        refreshAndWait(ref, hubDeliveryTasksProvider.future),
+      ]);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${IposbStatusMap.labelOf(status)} · CN $cn')),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/utils/google_maps_launcher.dart';
+import '../../../../core/utils/provider_refresh.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../shipment/presentation/providers/shipment_providers.dart';
 import '../../../shipment/presentation/widgets/shipment_status_chip.dart';
@@ -29,9 +30,11 @@ class DriverTaskDetailScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.invalidate(driverTaskDetailProvider(shipmentId));
-              ref.invalidate(shipmentHistoryProvider(shipmentId));
+            onPressed: () async {
+              await Future.wait([
+                refreshAndWait(ref, driverTaskDetailProvider(shipmentId).future),
+                refreshAndWait(ref, shipmentHistoryProvider(shipmentId).future),
+              ]);
             },
           ),
         ],

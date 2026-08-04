@@ -4,11 +4,13 @@ import '../../../../core/config/env.dart';
 import '../../../../core/network/driver_api_providers.dart';
 import '../../../../core/network/driver_api_session.dart';
 import '../../../../core/network/supabase_client.dart';
+import '../../../../core/utils/provider_refresh.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../shared/enums/shipment_status.dart';
 import '../../../../shared/enums/user_role.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../driver/domain/entities/driver_task.dart';
+import '../../../shipment/presentation/providers/shipment_providers.dart';
 import '../../data/datasources/hub_worker_api_datasource.dart';
 import '../../data/datasources/hub_worker_remote_datasource.dart';
 
@@ -132,9 +134,12 @@ class HubWorkerActionViewModel extends StateNotifier<HubWorkerActionState> {
           note: note,
         );
       }
-      _ref.invalidate(hubWorkerTaskDetailProvider(shipmentId));
-      _ref.invalidate(hubPickupTasksProvider);
-      _ref.invalidate(hubDeliveryTasksProvider);
+      await Future.wait([
+        refreshAndWaitRef(_ref, hubWorkerTaskDetailProvider(shipmentId).future),
+        refreshAndWaitRef(_ref, hubPickupTasksProvider.future),
+        refreshAndWaitRef(_ref, hubDeliveryTasksProvider.future),
+        refreshAndWaitRef(_ref, shipmentHistoryProvider(shipmentId).future),
+      ]);
       return true;
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());

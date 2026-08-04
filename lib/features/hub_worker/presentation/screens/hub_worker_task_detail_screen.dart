@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/utils/google_maps_launcher.dart';
+import '../../../../core/utils/provider_refresh.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../driver/domain/entities/driver_task.dart';
 import '../../../shipment/presentation/providers/shipment_providers.dart';
@@ -30,9 +31,11 @@ class HubWorkerTaskDetailScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.invalidate(hubWorkerTaskDetailProvider(shipmentId));
-              ref.invalidate(shipmentHistoryProvider(shipmentId));
+            onPressed: () async {
+              await Future.wait([
+                refreshAndWait(ref, hubWorkerTaskDetailProvider(shipmentId).future),
+                refreshAndWait(ref, shipmentHistoryProvider(shipmentId).future),
+              ]);
             },
           ),
         ],

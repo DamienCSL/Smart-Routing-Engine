@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/demo_zones.dart';
+import '../../../../core/utils/provider_refresh.dart';
 import '../../../shipment/domain/entities/shipment.dart';
 import '../../domain/entities/zone_driver_summary.dart';
 import '../providers/dispatcher_providers.dart';
@@ -99,8 +100,11 @@ class _AssignJobSheetState extends ConsumerState<AssignJobSheet> {
             jobType: _jobType,
           );
       if (!mounted) return;
-      ref.invalidate(zoneShipmentsProvider);
-      ref.invalidate(zoneDriversProvider);
+      await Future.wait([
+        refreshAndWait(ref, zoneShipmentsProvider.future),
+        refreshAndWait(ref, zoneDriversProvider.future),
+      ]);
+      if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;

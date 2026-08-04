@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/provider_refresh.dart';
 import '../../../../shared/enums/shipment_status.dart';
+import '../../../shipment/presentation/providers/shipment_providers.dart';
 import '../providers/driver_providers.dart';
 
 class DriverActionState {
@@ -44,14 +46,17 @@ class DriverActionViewModel extends StateNotifier<DriverActionState> {
             note: note,
           );
 
-      return result.when(
-        success: (_) {
-          _ref.invalidate(driverTaskDetailProvider(shipmentId));
-          _ref.invalidate(pickupTasksProvider);
-          _ref.invalidate(deliveryTasksProvider);
+      return await result.when(
+        success: (_) async {
+          await Future.wait([
+            refreshAndWaitRef(_ref, driverTaskDetailProvider(shipmentId).future),
+            refreshAndWaitRef(_ref, pickupTasksProvider.future),
+            refreshAndWaitRef(_ref, deliveryTasksProvider.future),
+            refreshAndWaitRef(_ref, shipmentHistoryProvider(shipmentId).future),
+          ]);
           return true;
         },
-        failure: (message) {
+        failure: (message) async {
           state = state.copyWith(errorMessage: message);
           return false;
         },
