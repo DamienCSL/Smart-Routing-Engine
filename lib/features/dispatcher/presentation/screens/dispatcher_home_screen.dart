@@ -31,6 +31,12 @@ class DispatcherHomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(apiMode ? 'Dispatch Desk' : 'Zone Dashboard'),
         actions: [
+          if (apiMode)
+            IconButton(
+              icon: const Icon(Icons.qr_code_scanner),
+              tooltip: 'Scan shipment',
+              onPressed: () => context.push(RoutePaths.dispatcherScan),
+            ),
           if (!apiMode)
             IconButton(
               icon: const Icon(Icons.map_outlined),
@@ -67,7 +73,7 @@ class DispatcherHomeScreen extends ConsumerWidget {
                   child: Text(
                     apiMode
                         ? 'Dispatcher profile not linked. '
-                            'Use dispatcher@iposb.demo or run sql/007_dispatcher_mobile.sql'
+                              'Use dispatcher@iposb.demo or run sql/007_dispatcher_mobile.sql'
                         : 'Dispatcher profile not found',
                     textAlign: TextAlign.center,
                   ),
@@ -95,8 +101,8 @@ class DispatcherHomeScreen extends ConsumerWidget {
                     Text(
                       apiMode
                           ? 'Branch ${dispatcher.hubId ?? '—'} · '
-                              '${DemoZones.labelOf(dispatcher.zone)}\n'
-                              'Pull down to refresh · auto-updates every ~12s'
+                                '${DemoZones.labelOf(dispatcher.zone)}\n'
+                                'Pull down to refresh · auto-updates every ~12s'
                           : 'Zone: ${DemoZones.labelOf(dispatcher.zone)}',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
@@ -179,15 +185,16 @@ class DispatcherHomeScreen extends ConsumerWidget {
                             const SizedBox(height: 12),
                             if (shipments.isEmpty)
                               Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 32),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 32,
+                                ),
                                 child: Text(
                                   apiMode
                                       ? 'No unassigned consignments. '
-                                          'Create an order as customer@iposb.demo.'
+                                            'Create an order as customer@iposb.demo.'
                                       : 'No shipments in this zone yet. '
-                                          'Create one as a customer '
-                                          '(Kota Kinabalu Metro → Sandakan).',
+                                            'Create one as a customer '
+                                            '(Kota Kinabalu Metro → Sandakan).',
                                   textAlign: TextAlign.center,
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
@@ -212,8 +219,9 @@ class DispatcherHomeScreen extends ConsumerWidget {
                                       shipment: shipment,
                                     );
                                     if (ok == true && context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
                                           content: Text(
                                             'Assigned ${shipment.trackingNumber}',
@@ -267,8 +275,8 @@ class _DriverChips extends StatelessWidget {
             d.zoneMatch
                 ? Icons.star
                 : d.isAvailable
-                    ? Icons.check_circle
-                    : Icons.pause_circle_outline,
+                ? Icons.check_circle
+                : Icons.pause_circle_outline,
             size: 18,
           ),
           label: Text('$label$zones${d.zoneMatch ? ' · recommended' : ''}'),

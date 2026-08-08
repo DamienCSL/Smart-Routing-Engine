@@ -7,8 +7,11 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/constants/iposb_status_map.dart';
 import '../../../../core/constants/route_paths.dart';
 import '../../../../core/network/driver_api_providers.dart';
+import '../../../../core/network/driver_api_session.dart';
 import '../../../../core/utils/provider_refresh.dart';
 import '../../../../core/utils/shipment_qr_payload.dart';
+import '../../../../shared/enums/user_role.dart';
+import '../../../dispatcher/presentation/providers/dispatcher_providers.dart';
 import '../providers/hub_worker_providers.dart';
 
 /// Scan CN barcode/QR, then post the next allowed SOP scan.
@@ -27,6 +30,8 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
   String? _cnNo;
   List<String> _nextScans = const [];
   String? _customerLabel;
+  String? _originLoc;
+  String? _destinationLoc;
   String? _error;
   bool _busy = false;
   bool _handledCode = false;
@@ -60,17 +65,28 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
     });
     try {
       final api = ref.read(driverApiClientProvider);
-      // This endpoint also verifies that the signed-in staff member is
-      // assigned to the shipment before any transition is offered.
-      final json = await api.getJson('/driver/jobs/$cn');
-      final job = json['job'] as Map<String, dynamic>?;
-      loadedNextScans = (job?['nextScans'] as List<dynamic>? ?? const [])
+      final isDispatcher =
+          ref.read(driverApiSessionProvider)?.role == UserRole.dispatcher;
+      Map<String, dynamic> data;
+      if (isDispatcher) {
+        // Dispatchers may process any shipment through the guarded ops route.
+        data = await api.getPublicJson('/tracking/$cn');
+      } else {
+        // This also verifies that the driver is assigned to the shipment.
+        final json = await api.getJson('/driver/jobs/$cn');
+        data = json['job'] is Map
+            ? Map<String, dynamic>.from(json['job'] as Map)
+            : <String, dynamic>{};
+      }
+      loadedNextScans = (data['nextScans'] as List<dynamic>? ?? const [])
           .map((e) => e.toString())
           .toList();
       if (!mounted) return;
       setState(() {
         _nextScans = loadedNextScans;
-        _customerLabel = job?['customerLabel']?.toString();
+        _customerLabel = data['customerLabel']?.toString();
+        _originLoc = (data['originLoc'] ?? data['origin'])?.toString();
+        _destinationLoc = (data['destLoc'] ?? data['destination'])?.toString();
       });
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -94,27 +110,8 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
 
     String? selected;
     if (statuses.length == 1) {
-      final status = statuses.single;
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Update shipment status?'),
-          content: Text(
-            'Move CN $_cnNo to “${IposbStatusMap.labelOf(status)}”?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Update status'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed == true) selected = status;
+      // The transition is unambiguous, so scanning applies it immediately.
+      selected = statuses.single;
     } else {
       selected = await showModalBottomSheet<String>(
         context: context,
@@ -158,25 +155,42 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
     });
     try {
       final api = ref.read(driverApiClientProvider);
-      await api.postJson(
-        '/driver/jobs/$cn/scan',
-        body: {
-          'status': status,
-          'note': 'Scanned via app',
-          'locId': IposbStatusMap.defaultLocForStatus(status),
-        },
+      final isDispatcher =
+          ref.read(driverApiSessionProvider)?.role == UserRole.dispatcher;
+      final locId = IposbStatusMap.defaultLocForStatus(
+        status,
+        origin: _originLoc,
+        dest: _destinationLoc,
       );
-      await Future.wait([
-        refreshAndWait(ref, hubPickupTasksProvider.future),
-        refreshAndWait(ref, hubDeliveryTasksProvider.future),
-      ]);
+      if (isDispatcher) {
+        await api.postJson(
+          '/ops/scan',
+          body: {
+            'cnNo': cn,
+            'status': status,
+            'note': 'Scanned by dispatcher via mobile app',
+            'locId': locId,
+          },
+        );
+        ref.invalidate(zoneShipmentsProvider);
+        ref.invalidate(zoneDriversProvider);
+      } else {
+        await api.postJson(
+          '/driver/jobs/$cn/scan',
+          body: {'status': status, 'note': 'Scanned via app', 'locId': locId},
+        );
+        await Future.wait([
+          refreshAndWait(ref, hubPickupTasksProvider.future),
+          refreshAndWait(ref, hubDeliveryTasksProvider.future),
+        ]);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${IposbStatusMap.labelOf(status)} · CN $cn')),
       );
       await _loadCn(cn);
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -186,18 +200,21 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scanner = _scannerController;
+    final isDispatcher =
+        ref.watch(driverApiSessionProvider)?.role == UserRole.dispatcher;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan CN'),
+        title: Text(isDispatcher ? 'Dispatcher Scan' : 'Driver Scan'),
         actions: [
-          IconButton(
-            tooltip: 'Open job',
-            onPressed: _cnNo == null
-                ? null
-                : () => context.push(RoutePaths.hubWorkerTaskDetail(_cnNo!)),
-            icon: const Icon(Icons.open_in_new),
-          ),
+          if (!isDispatcher)
+            IconButton(
+              tooltip: 'Open job',
+              onPressed: _cnNo == null
+                  ? null
+                  : () => context.push(RoutePaths.hubWorkerTaskDetail(_cnNo!)),
+              icon: const Icon(Icons.open_in_new),
+            ),
         ],
       ),
       body: ListView(
@@ -236,6 +253,25 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
                 ),
               ),
             ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Icon(Icons.auto_awesome, color: theme.colorScheme.primary),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Scan a shipment QR to apply its next allowed status '
+                      'automatically. If the workflow branches, choose the '
+                      'correct next status.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           Text('Or enter CN manually', style: theme.textTheme.titleSmall),
           const SizedBox(height: 8),

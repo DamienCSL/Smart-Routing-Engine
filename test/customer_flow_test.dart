@@ -20,6 +20,17 @@ void main() {
     );
   });
 
+  test('dispatcher can access the built-in shipment scanner', () {
+    expect(
+      canAccessRoute(UserRole.dispatcher, RoutePaths.dispatcherScan),
+      isTrue,
+    );
+    expect(
+      canAccessRoute(UserRole.customer, RoutePaths.dispatcherScan),
+      isFalse,
+    );
+  });
+
   test('customer API order preserves addresses, zones, and coordinates', () {
     final shipment = CustomerOrderMapper.fromApi({
       'cnNo': '20001234',

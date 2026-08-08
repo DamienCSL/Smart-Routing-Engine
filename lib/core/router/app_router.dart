@@ -195,6 +195,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: RoutePaths.dispatcherHome,
           name: 'dispatcher',
           builder: (context, state) => const DispatcherHomeScreen(),
+          routes: [
+            GoRoute(
+              path: 'scan',
+              name: 'dispatcherScan',
+              builder: (context, state) => const HubWorkerScanScreen(),
+            ),
+          ],
         ),
         ..._hubWorkerRoutes(),
       ],

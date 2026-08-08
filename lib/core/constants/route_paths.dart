@@ -31,6 +31,7 @@ abstract final class RoutePaths {
 
   static const String dispatcherHome = '/dispatcher';
   static const String dispatcherMap = '/dispatcher/map';
+  static const String dispatcherScan = '/dispatcher/scan';
   static String dispatcherShipmentDetail(String id) =>
       '/dispatcher/shipments/$id';
 
