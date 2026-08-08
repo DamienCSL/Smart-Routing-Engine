@@ -14,8 +14,15 @@ class HubWorkerRemoteDataSource {
   final SupabaseClient _client;
   static const _timeout = Duration(seconds: 20);
 
-  Future<({String id, String hubId, List<String> preferredZones})>
-      getCurrentProfile() async {
+  Future<
+      ({
+        String id,
+        String hubId,
+        List<String> preferredZones,
+        String? phone,
+        String? routeCd,
+        bool isAvailable,
+      })> getCurrentProfile() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
       throw const AuthException('Not authenticated');
@@ -44,7 +51,14 @@ class HubWorkerRemoteDataSource {
           ? zonesRaw.map((e) => e.toString()).toList()
           : <String>[];
 
-      return (id: id, hubId: hubId, preferredZones: zones);
+      return (
+        id: id,
+        hubId: hubId,
+        preferredZones: zones,
+        phone: null,
+        routeCd: null,
+        isAvailable: true,
+      );
     } on PostgrestException catch (e) {
       throw ServerException(e.message);
     } on TimeoutException {

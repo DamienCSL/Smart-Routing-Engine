@@ -35,6 +35,7 @@ class _AssignJobSheetState extends ConsumerState<AssignJobSheet> {
   bool _assigning = false;
   String? _error;
   DispatchSuggestResult? _suggest;
+  String? _selectedDriverId;
   String? _selectedUid;
 
   @override
@@ -63,14 +64,16 @@ class _AssignJobSheetState extends ConsumerState<AssignJobSheet> {
       if (!mounted) return;
       ZoneDriverSummary? first;
       for (final d in result.drivers) {
-        final uid = d.firebaseUid;
-        if (uid != null && uid.isNotEmpty) {
+        final id = int.tryParse(d.id) ?? 0;
+        if (id > 0) {
           first = d;
           break;
         }
       }
+      first ??= result.drivers.isNotEmpty ? result.drivers.first : null;
       setState(() {
         _suggest = result;
+        _selectedDriverId = first?.id;
         _selectedUid = first?.firebaseUid;
         _loading = false;
       });
@@ -84,9 +87,10 @@ class _AssignJobSheetState extends ConsumerState<AssignJobSheet> {
   }
 
   Future<void> _assign() async {
+    final driverId = int.tryParse(_selectedDriverId ?? '') ?? 0;
     final uid = _selectedUid;
-    if (uid == null || uid.isEmpty) {
-      setState(() => _error = 'Select a driver with a mobile login.');
+    if (driverId <= 0 && (uid == null || uid.isEmpty)) {
+      setState(() => _error = 'Select a driver.');
       return;
     }
     setState(() {
@@ -96,6 +100,7 @@ class _AssignJobSheetState extends ConsumerState<AssignJobSheet> {
     try {
       await ref.read(dispatcherApiDataSourceProvider).assignJob(
             cnNo: widget.shipment.trackingNumber,
+            driverId: driverId > 0 ? driverId : null,
             firebaseUid: uid,
             jobType: _jobType,
           );
@@ -251,9 +256,9 @@ class _AssignJobSheetState extends ConsumerState<AssignJobSheet> {
                 itemCount: _suggest!.drivers.length,
                 itemBuilder: (context, i) {
                   final d = _suggest!.drivers[i];
-                  final uid = d.firebaseUid ?? '';
-                  final enabled = uid.isNotEmpty;
-                  final selected = enabled && uid == _selectedUid;
+                  final enabled = (int.tryParse(d.id) ?? 0) > 0 ||
+                      (d.firebaseUid != null && d.firebaseUid!.isNotEmpty);
+                  final selected = enabled && d.id == _selectedDriverId;
                   final badges = <String>[];
                   if (d.zoneMatch) badges.add('zone');
                   if (d.routeMatch) badges.add('route');
@@ -281,12 +286,14 @@ class _AssignJobSheetState extends ConsumerState<AssignJobSheet> {
                         if (d.preferredZones.isNotEmpty)
                           d.preferredZones.join(','),
                         if (badges.isNotEmpty) badges.join(' · '),
-                        if (!enabled) 'no mobile login',
                       ].where((e) => e.isNotEmpty).join(' · '),
                     ),
                     onTap: (!enabled || _assigning)
                         ? null
-                        : () => setState(() => _selectedUid = uid),
+                        : () => setState(() {
+                              _selectedDriverId = d.id;
+                              _selectedUid = d.firebaseUid;
+                            }),
                   );
                 },
               ),

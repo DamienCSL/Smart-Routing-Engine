@@ -8,6 +8,8 @@ class PickedLocation {
     required this.zoneCode,
     this.city,
     this.state = 'Sabah',
+    this.contactName,
+    this.phone,
   });
 
   final LatLng point;
@@ -15,6 +17,8 @@ class PickedLocation {
   final String zoneCode;
   final String? city;
   final String state;
+  final String? contactName;
+  final String? phone;
 
   String get shortSummary {
     final cityPart = (city == null || city!.isEmpty) ? '' : ', $city';

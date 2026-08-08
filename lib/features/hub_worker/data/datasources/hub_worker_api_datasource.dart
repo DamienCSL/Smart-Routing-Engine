@@ -14,8 +14,15 @@ class HubWorkerApiDataSource {
 
   final DriverApiClient _api;
 
-  Future<({String id, String hubId, List<String> preferredZones})>
-      getCurrentProfile() async {
+  Future<
+      ({
+        String id,
+        String hubId,
+        List<String> preferredZones,
+        String? phone,
+        String? routeCd,
+        bool isAvailable,
+      })> getCurrentProfile() async {
     final json = await _api.getJson('/driver/me');
     final zonesRaw = json['preferredZones'];
     final zones = zonesRaw is List
@@ -25,7 +32,11 @@ class HubWorkerApiDataSource {
     return (
       id: json['driverId'].toString(),
       hubId: loc,
-      preferredZones: zones.isNotEmpty ? zones : (loc.isNotEmpty ? [loc] : <String>[]),
+      preferredZones:
+          zones.isNotEmpty ? zones : (loc.isNotEmpty ? [loc] : <String>[]),
+      phone: json['phone']?.toString(),
+      routeCd: json['routeCd']?.toString(),
+      isAvailable: json['isAvailable'] == true || json['isAvailable'] == 1,
     );
   }
 

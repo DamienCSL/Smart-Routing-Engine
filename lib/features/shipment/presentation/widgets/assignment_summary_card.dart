@@ -27,8 +27,8 @@ class AssignmentSummaryCard extends StatelessWidget {
         ),
         child: Text(
           shipment.status.label == 'Failed'
-              ? 'Assignment failed — check that a routing rule exists for this zone pair and hub workers were seeded (011 + demo_staff).'
-              : 'Waiting for Assignment Engine…',
+              ? 'We could not prepare this delivery. Please contact support for help.'
+              : 'We are preparing the best route and courier for your parcel.',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -54,14 +54,14 @@ class AssignmentSummaryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Assignment Engine Result',
+              'Delivery journey',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              '${shipment.assignedRoleCount} nodes assigned via routing rules',
+              'Your parcel has been prepared for each step of its journey.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -83,13 +83,9 @@ class AssignmentSummaryCard extends StatelessWidget {
                     ),
                     Expanded(
                       child: Text(
-                        row.$2 ?? '— not available —',
+                        row.$2 == null ? 'Preparing' : 'Ready',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: row.$2 == null
-                              ? theme.colorScheme.error
-                              : null,
-                          fontFamily: 'monospace',
-                          fontSize: 12,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -118,17 +114,15 @@ class _IposbDispatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final driverId =
-        shipment.deliveryDriverId ?? shipment.deliveryHubWorkerId;
+    final driverId = shipment.deliveryDriverId ?? shipment.deliveryHubWorkerId;
     final hasDriver = driverId != null && driverId.isNotEmpty;
 
-    final title =
-        hasDriver ? 'Driver assigned' : 'Awaiting dispatcher assignment';
+    final title = hasDriver ? 'Courier assigned' : 'Preparing your pickup';
     final body = hasDriver
-        ? 'Driver #$driverId will handle pickup / delivery for this CN.'
-        : 'Order is Pending Pickup. After API redeploy (v2.1+), creating a '
-            'KK→Sandakan order auto-assigns the KK demo driver when zone score '
-            'matches. Until then, assign from FMS or Demo desk.';
+        ? 'A courier has been assigned. We will keep you updated as your '
+              'parcel moves through each delivery stage.'
+        : 'We received your shipment request and are arranging a courier. '
+              'You will see the next update here once pickup is scheduled.';
 
     return Card(
       child: Padding(
@@ -149,15 +143,6 @@ class _IposbDispatchCard extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            if (hasDriver) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Assigned driver id: $driverId',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ],
           ],
         ),
       ),

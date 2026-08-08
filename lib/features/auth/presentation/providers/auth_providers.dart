@@ -38,9 +38,14 @@ final currentUserProfileProvider = FutureProvider<UserProfile?>((ref) async {
           ? session.email
           : '${session.uid}@iposb.local',
       fullName: session.displayName,
+      phone: session.phone,
       role: session.role,
-      isActive: true,
-      createdAt: DateTime.now(),
+      isActive: session.isActive,
+      createdAt: session.createdAt ?? DateTime.now(),
+      accountNo: session.custAcNo,
+      driverId: session.driverId,
+      dispatcherId: session.dispatcherId,
+      preferredZones: session.preferredZones,
     );
   }
 

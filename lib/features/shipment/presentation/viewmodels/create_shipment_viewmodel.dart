@@ -29,8 +29,9 @@ class CreateShipmentState {
     return CreateShipmentState(
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
-      createdShipment:
-          clearCreated ? null : (createdShipment ?? this.createdShipment),
+      createdShipment: clearCreated
+          ? null
+          : (createdShipment ?? this.createdShipment),
     );
   }
 }
@@ -43,24 +44,36 @@ class CreateShipmentViewModel extends StateNotifier<CreateShipmentState> {
   Future<Shipment?> submit(CreateShipmentRequest request) async {
     if (state.isLoading) return null;
 
-    state = state.copyWith(isLoading: true, clearError: true, clearCreated: true);
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearCreated: true,
+    );
 
     try {
       if (Env.useDriverApi && !Env.isSupabaseConfigured) {
         final api = _ref.read(driverApiClientProvider);
         final session = _ref.read(driverApiSessionProvider);
         final order = await api.createCustomerOrder(
-          recipientName: request.packageDescription?.trim().isNotEmpty == true
-              ? request.packageDescription!.trim()
-              : request.destinationCity,
+          recipientName: (request.recipientName?.trim().isNotEmpty == true)
+              ? request.recipientName!.trim()
+              : (request.packageDescription?.trim().isNotEmpty == true
+                    ? request.packageDescription!.trim()
+                    : request.destinationCity),
           address: request.destinationAddress,
+          senderAddress: request.originAddress,
+          originLat: request.originLat,
+          originLng: request.originLng,
+          destinationLat: request.destinationLat,
+          destinationLng: request.destinationLng,
           origin: CustomerOrderMapper.branchFromZone(request.originZone),
           dest: CustomerOrderMapper.branchFromZone(request.destinationZone),
           originZone: request.originZone,
           destinationZone: request.destinationZone,
           weight: request.weightKg,
           pieces: request.packageCount,
-          senderName: session?.displayName,
+          senderName: request.senderName ?? session?.displayName,
+          phone: request.recipientPhone,
         );
         final shipment = CustomerOrderMapper.fromApi(
           order,
@@ -71,8 +84,9 @@ class CreateShipmentViewModel extends StateNotifier<CreateShipmentState> {
         return shipment;
       }
 
-      final result =
-          await _ref.read(shipmentRepositoryProvider).createShipment(request);
+      final result = await _ref
+          .read(shipmentRepositoryProvider)
+          .createShipment(request);
 
       return result.when(
         success: (shipment) {
@@ -97,6 +111,7 @@ class CreateShipmentViewModel extends StateNotifier<CreateShipmentState> {
 }
 
 final createShipmentViewModelProvider =
-    StateNotifierProvider.autoDispose<CreateShipmentViewModel, CreateShipmentState>(
-  (ref) => CreateShipmentViewModel(ref),
-);
+    StateNotifierProvider.autoDispose<
+      CreateShipmentViewModel,
+      CreateShipmentState
+    >((ref) => CreateShipmentViewModel(ref));

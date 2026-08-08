@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/constants/route_paths.dart';
+import '../../../../shared/enums/user_role.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../domain/entities/app_notification.dart';
 import '../providers/notification_providers.dart';
 
@@ -22,22 +26,21 @@ class NotificationsScreen extends ConsumerWidget {
           if (unread > 0)
             TextButton(
               onPressed: () async {
-                final result = await ref
-                    .read(notificationRepositoryProvider)
-                    .markAllAsRead();
-                result.when(
-                  success: (_) {
-                    ref.invalidate(myNotificationsProvider);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('All marked as read')),
-                    );
-                  },
-                  failure: (message) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(message)),
-                    );
-                  },
-                );
+                try {
+                  await markAllNotificationsAsRead(
+                    ref,
+                    notificationsAsync.valueOrNull ?? const [],
+                  );
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('All marked as read')),
+                  );
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('$e')));
+                }
               },
               child: const Text('Mark all read'),
             ),
@@ -115,17 +118,19 @@ class NotificationsScreen extends ConsumerWidget {
     AppNotification item,
   ) async {
     if (!item.isRead) {
-      await ref.read(notificationRepositoryProvider).markAsRead(item.id);
-      ref.invalidate(myNotificationsProvider);
+      await markNotificationAsRead(ref, item.id);
+    }
+    final role = ref.read(currentUserProfileProvider).valueOrNull?.role;
+    if (context.mounted &&
+        role == UserRole.customer &&
+        item.shipmentId != null) {
+      context.push(RoutePaths.customerShipmentDetail(item.shipmentId!));
     }
   }
 }
 
 class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({
-    required this.notification,
-    required this.onTap,
-  });
+  const _NotificationTile({required this.notification, required this.onTap});
 
   final AppNotification notification;
   final VoidCallback onTap;
@@ -134,8 +139,8 @@ class _NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final time = DateFormat.yMMMd().add_jm().format(
-          notification.createdAt.toLocal(),
-        );
+      notification.createdAt.toLocal(),
+    );
 
     return ListTile(
       onTap: onTap,
@@ -153,8 +158,7 @@ class _NotificationTile extends StatelessWidget {
       title: Text(
         notification.title,
         style: TextStyle(
-          fontWeight:
-              notification.isRead ? FontWeight.w500 : FontWeight.w700,
+          fontWeight: notification.isRead ? FontWeight.w500 : FontWeight.w700,
         ),
       ),
       subtitle: Column(

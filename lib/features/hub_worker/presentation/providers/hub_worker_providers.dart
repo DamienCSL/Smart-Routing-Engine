@@ -24,9 +24,15 @@ final hubWorkerRemoteDataSourceProvider =
   return HubWorkerRemoteDataSource(ref.watch(supabaseClientProvider));
 });
 
-final hubWorkerProfileProvider =
-    FutureProvider<({String id, String hubId, List<String> preferredZones})?>(
-        (ref) async {
+final hubWorkerProfileProvider = FutureProvider<
+    ({
+      String id,
+      String hubId,
+      List<String> preferredZones,
+      String? phone,
+      String? routeCd,
+      bool isAvailable,
+    })?>((ref) async {
   ref.watch(authStateProvider);
   try {
     if (Env.useDriverApi) {

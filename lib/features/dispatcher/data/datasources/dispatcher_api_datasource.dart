@@ -29,6 +29,10 @@ class DispatcherApiDataSource {
                 (prefs.isNotEmpty ? prefs.first : 'KK-METRO'))
             .toString(),
         hubId: me['branchCode']?.toString(),
+        code: me['code']?.toString(),
+        fullName: me['fullName']?.toString(),
+        phone: me['phone']?.toString(),
+        preferredZones: prefs,
       );
     } catch (_) {
       // Fall through to catalog lookup.
@@ -69,6 +73,11 @@ class DispatcherApiDataSource {
                   : 'KK-METRO'))
           .toString(),
       hubId: match?['branchCode']?.toString(),
+      code: match?['code']?.toString() ?? match?['dispatcherCode']?.toString(),
+      fullName: match?['fullName']?.toString() ?? session.displayName,
+      phone: match?['phone']?.toString() ?? session.phone,
+      preferredZones:
+          prefs.isNotEmpty ? prefs : session.preferredZones,
     );
   }
 
@@ -157,14 +166,21 @@ class DispatcherApiDataSource {
 
   Future<void> assignJob({
     required String cnNo,
-    required String firebaseUid,
+    String? firebaseUid,
+    int? driverId,
     String jobType = 'delivery',
   }) async {
-    await _api.postJson('/dispatch/assign', body: {
+    final body = <String, dynamic>{
       'cnNo': cnNo,
-      'firebaseUid': firebaseUid,
       'jobType': jobType,
-    });
+    };
+    if (driverId != null && driverId > 0) {
+      body['driverId'] = driverId;
+    }
+    if (firebaseUid != null && firebaseUid.isNotEmpty) {
+      body['firebaseUid'] = firebaseUid;
+    }
+    await _api.postJson('/dispatch/assign', body: body);
   }
 
   Future<void> unassignJob({required String cnNo}) async {

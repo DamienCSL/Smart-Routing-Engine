@@ -9,8 +9,8 @@ import '../utils/logger.dart';
 /// HTTP client for IPOSB mobile API (MySQL master + bearer / demo auth).
 class DriverApiClient {
   DriverApiClient({http.Client? client, String? baseUrl})
-      : _client = client ?? http.Client(),
-        _baseUrl = (baseUrl ?? Env.driverApiUrl).replaceAll(RegExp(r'/$'), '');
+    : _client = client ?? http.Client(),
+      _baseUrl = (baseUrl ?? Env.driverApiUrl).replaceAll(RegExp(r'/$'), '');
 
   final http.Client _client;
   final String _baseUrl;
@@ -35,15 +35,15 @@ class DriverApiClient {
   }
 
   Map<String, String> get _publicHeaders => const {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  };
 
   Map<String, String> get _dispatchHeaders => {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Dispatch-Key': Env.dispatchApiKey,
-      };
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'X-Dispatch-Key': Env.dispatchApiKey,
+  };
 
   Future<Map<String, dynamic>> getJson(
     String path, {
@@ -71,11 +71,7 @@ class DriverApiClient {
     Map<String, dynamic>? body,
   }) async {
     final res = await _client
-        .post(
-          _uri(path),
-          headers: _headers,
-          body: jsonEncode(body ?? {}),
-        )
+        .post(_uri(path), headers: _headers, body: jsonEncode(body ?? {}))
         .timeout(const Duration(seconds: 20));
     return _decode(res);
   }
@@ -85,11 +81,7 @@ class DriverApiClient {
     Map<String, dynamic>? body,
   }) async {
     final res = await _client
-        .post(
-          _uri(path),
-          headers: _publicHeaders,
-          body: jsonEncode(body ?? {}),
-        )
+        .post(_uri(path), headers: _publicHeaders, body: jsonEncode(body ?? {}))
         .timeout(const Duration(seconds: 20));
     return _decode(res);
   }
@@ -99,13 +91,45 @@ class DriverApiClient {
     Map<String, dynamic>? body,
   }) async {
     final res = await _client
-        .patch(
-          _uri(path),
-          headers: _headers,
-          body: jsonEncode(body ?? {}),
-        )
+        .patch(_uri(path), headers: _headers, body: jsonEncode(body ?? {}))
         .timeout(const Duration(seconds: 20));
     return _decode(res);
+  }
+
+  Future<Map<String, dynamic>> deleteJson(String path) async {
+    final res = await _client
+        .delete(_uri(path), headers: _headers)
+        .timeout(const Duration(seconds: 20));
+    return _decode(res);
+  }
+
+  Future<List<Map<String, dynamic>>> listCustomerAddresses({
+    String? kind,
+  }) async {
+    final json = await getJson(
+      '/customer/addresses',
+      query: {if (kind != null && kind.isNotEmpty) 'kind': kind},
+    );
+    final list = json['addresses'];
+    if (list is! List) return const [];
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> createCustomerAddress(
+    Map<String, dynamic> body,
+  ) async {
+    final json = await postJson('/customer/addresses', body: body);
+    final address = json['address'];
+    if (address is Map<String, dynamic>) return address;
+    if (address is Map) return Map<String, dynamic>.from(address);
+    throw const ServerException('Create address response missing address');
+  }
+
+  Future<void> deleteCustomerAddress(int id) async {
+    await deleteJson('/customer/addresses/$id');
   }
 
   /// Ops / demo endpoints protected by X-Dispatch-Key.
@@ -138,10 +162,10 @@ class DriverApiClient {
     required String email,
     required String password,
   }) async {
-    final json = await postPublicJson('/auth/login', body: {
-      'email': email.trim(),
-      'password': password,
-    });
+    final json = await postPublicJson(
+      '/auth/login',
+      body: {'email': email.trim(), 'password': password},
+    );
     final token = json['token']?.toString();
     if (token == null || token.isEmpty) {
       throw const AuthException('Login response missing token');
@@ -159,15 +183,18 @@ class DriverApiClient {
     String? phone,
     List<String>? preferredZones,
   }) async {
-    final json = await postPublicJson('/auth/register', body: {
-      'email': email.trim(),
-      'password': password,
-      'fullName': fullName.trim(),
-      'role': role,
-      if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
-      if (preferredZones != null && preferredZones.isNotEmpty)
-        'preferredZones': preferredZones,
-    });
+    final json = await postPublicJson(
+      '/auth/register',
+      body: {
+        'email': email.trim(),
+        'password': password,
+        'fullName': fullName.trim(),
+        'role': role,
+        if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+        if (preferredZones != null && preferredZones.isNotEmpty)
+          'preferredZones': preferredZones,
+      },
+    );
     final token = json['token']?.toString();
     if (token == null || token.isEmpty) {
       throw const AuthException('Register response missing token');
@@ -188,16 +215,26 @@ class DriverApiClient {
     }
   }
 
-  Future<List<Map<String, dynamic>>> listCustomerOrders({int limit = 50}) async {
-    final json = await getJson('/customer/orders', query: {
-      'limit': '$limit',
-    });
+  Future<List<Map<String, dynamic>>> listCustomerOrders({
+    int limit = 50,
+  }) async {
+    final json = await getJson('/customer/orders', query: {'limit': '$limit'});
     final list = json['orders'];
     if (list is! List) return const [];
     return list
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
+  }
+
+  Future<Map<String, dynamic>> cancelCustomerOrder(String cnNo) async {
+    final json = await postJson(
+      '/customer/orders/${Uri.encodeComponent(cnNo)}/cancel',
+    );
+    final order = json['order'];
+    if (order is Map<String, dynamic>) return order;
+    if (order is Map) return Map<String, dynamic>.from(order);
+    throw const ServerException('Cancel order response missing order');
   }
 
   Future<Map<String, dynamic>> createCustomerOrder({
@@ -207,24 +244,39 @@ class DriverApiClient {
     String dest = 'BKI',
     String? originZone,
     String? destinationZone,
+    String? senderAddress,
+    double? originLat,
+    double? originLng,
+    double? destinationLat,
+    double? destinationLng,
     double weight = 1,
     int pieces = 1,
     String? phone,
     String? senderName,
   }) async {
-    final json = await postJson('/customer/orders', body: {
-      'recipientName': recipientName,
-      'address': address,
-      'origin': origin,
-      'dest': dest,
-      if (originZone != null && originZone.isNotEmpty) 'originZone': originZone,
-      if (destinationZone != null && destinationZone.isNotEmpty)
-        'destinationZone': destinationZone,
-      'weight': weight,
-      'pieces': pieces,
-      if (phone != null) 'phone': phone,
-      if (senderName != null) 'senderName': senderName,
-    });
+    final json = await postJson(
+      '/customer/orders',
+      body: {
+        'recipientName': recipientName,
+        'address': address,
+        'origin': origin,
+        'dest': dest,
+        if (originZone != null && originZone.isNotEmpty)
+          'originZone': originZone,
+        if (destinationZone != null && destinationZone.isNotEmpty)
+          'destinationZone': destinationZone,
+        if (senderAddress != null && senderAddress.isNotEmpty)
+          'senderAddress': senderAddress,
+        if (originLat != null) 'originLat': originLat,
+        if (originLng != null) 'originLng': originLng,
+        if (destinationLat != null) 'destinationLat': destinationLat,
+        if (destinationLng != null) 'destinationLng': destinationLng,
+        'weight': weight,
+        'pieces': pieces,
+        if (phone != null) 'phone': phone,
+        if (senderName != null) 'senderName': senderName,
+      },
+    );
     final order = json['order'];
     if (order is Map<String, dynamic>) return order;
     if (order is Map) return Map<String, dynamic>.from(order);

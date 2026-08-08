@@ -30,68 +30,74 @@ import '../../features/storekeeper/presentation/screens/storekeeper_home_screen.
 import '../../features/storekeeper/presentation/screens/storekeeper_task_detail_screen.dart';
 
 List<RouteBase> _sharedAuthRoutes() => [
-      GoRoute(
-        path: RoutePaths.splash,
-        name: 'splash',
-        builder: (context, state) => const SplashScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.login,
-        name: 'login',
-        builder: (context, state) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.profile,
-        name: 'profile',
-        builder: (context, state) => const ProfileScreen(),
-      ),
-    ];
+  GoRoute(
+    path: RoutePaths.splash,
+    name: 'splash',
+    builder: (context, state) => const SplashScreen(),
+  ),
+  GoRoute(
+    path: RoutePaths.login,
+    name: 'login',
+    builder: (context, state) => const LoginScreen(),
+  ),
+  GoRoute(
+    path: RoutePaths.register,
+    name: 'register',
+    builder: (context, state) => const RegisterScreen(),
+  ),
+  GoRoute(
+    path: RoutePaths.profile,
+    name: 'profile',
+    builder: (context, state) => const ProfileScreen(),
+  ),
+  GoRoute(
+    path: RoutePaths.notifications,
+    name: 'notifications',
+    builder: (context, state) => const NotificationsScreen(),
+  ),
+];
 
 List<RouteBase> _hubWorkerRoutes() => [
+  GoRoute(
+    path: RoutePaths.hubWorkerHome,
+    name: 'hubWorker',
+    builder: (context, state) => const HubWorkerHomeScreen(),
+    routes: [
       GoRoute(
-        path: RoutePaths.hubWorkerHome,
-        name: 'hubWorker',
-        builder: (context, state) => const HubWorkerHomeScreen(),
-        routes: [
-          GoRoute(
-            path: 'demo-desk',
-            name: 'hubWorkerDemoDesk',
-            builder: (context, state) => const DemoOpsDeskScreen(),
-          ),
-          GoRoute(
-            path: 'scan',
-            name: 'hubWorkerScan',
-            builder: (context, state) => const HubWorkerScanScreen(),
-          ),
-          GoRoute(
-            path: 'map',
-            name: 'hubWorkerMap',
-            builder: (context, state) {
-              final q = state.uri.queryParameters['q'];
-              final lat = double.tryParse(
-                state.uri.queryParameters['lat'] ?? '',
-              );
-              final lng = double.tryParse(
-                state.uri.queryParameters['lng'] ?? '',
-              );
-              return HubWorkerOpsMapScreen(
-                initialQuery: q,
-                initialLat: lat,
-                initialLng: lng,
-              );
-            },
-          ),
-          GoRoute(
-            path: 'tasks/:id',
-            name: 'hubWorkerTaskDetail',
-            builder: (context, state) {
-              final id = state.pathParameters['id']!;
-              return HubWorkerTaskDetailScreen(shipmentId: id);
-            },
-          ),
-        ],
+        path: 'demo-desk',
+        name: 'hubWorkerDemoDesk',
+        builder: (context, state) => const DemoOpsDeskScreen(),
       ),
-    ];
+      GoRoute(
+        path: 'scan',
+        name: 'hubWorkerScan',
+        builder: (context, state) => const HubWorkerScanScreen(),
+      ),
+      GoRoute(
+        path: 'map',
+        name: 'hubWorkerMap',
+        builder: (context, state) {
+          final q = state.uri.queryParameters['q'];
+          final lat = double.tryParse(state.uri.queryParameters['lat'] ?? '');
+          final lng = double.tryParse(state.uri.queryParameters['lng'] ?? '');
+          return HubWorkerOpsMapScreen(
+            initialQuery: q,
+            initialLat: lat,
+            initialLng: lng,
+          );
+        },
+      ),
+      GoRoute(
+        path: 'tasks/:id',
+        name: 'hubWorkerTaskDetail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return HubWorkerTaskDetailScreen(shipmentId: id);
+        },
+      ),
+    ],
+  ),
+];
 
 final routerProvider = Provider<GoRouter>((ref) {
   if (!Env.isConfigured) {
@@ -118,7 +124,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       redirect: (context, state) {
         final location = state.uri.path.isEmpty ? '/' : state.uri.path;
         final session = ref.read(driverApiSessionProvider);
-        final isAuthRoute = location == RoutePaths.login;
+        final isAuthRoute =
+            location == RoutePaths.login || location == RoutePaths.register;
         final isSplash = location == RoutePaths.splash || location == '/';
         final isTrack = location == RoutePaths.trackOrder;
 
@@ -135,7 +142,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (isAuthRoute || isSplash) return home;
 
         final inHomeArea = location == home || location.startsWith('$home/');
-        if (!inHomeArea && location != RoutePaths.profile && !isTrack) {
+        if (!inHomeArea &&
+            location != RoutePaths.profile &&
+            location != RoutePaths.notifications &&
+            !isTrack) {
           return home;
         }
         return null;
@@ -201,16 +211,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) => _redirect(supabase, state),
     routes: [
       ..._sharedAuthRoutes(),
-      GoRoute(
-        path: RoutePaths.register,
-        name: 'register',
-        builder: (context, state) => const RegisterScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.notifications,
-        name: 'notifications',
-        builder: (context, state) => const NotificationsScreen(),
-      ),
       GoRoute(
         path: RoutePaths.customerHome,
         name: 'customer',

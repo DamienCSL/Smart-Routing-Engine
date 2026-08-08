@@ -9,6 +9,8 @@ import '../../../ops_map/domain/entities/picked_location.dart';
 import '../../../ops_map/presentation/screens/role_ops_map_screens.dart';
 import '../../../shipment/domain/entities/create_shipment_request.dart';
 import '../../../shipment/presentation/viewmodels/create_shipment_viewmodel.dart';
+import '../../domain/entities/saved_address.dart';
+import '../widgets/address_book_sheet.dart';
 
 class CreateShipmentScreen extends ConsumerStatefulWidget {
   const CreateShipmentScreen({super.key});
@@ -24,6 +26,8 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
   final _description = TextEditingController();
   final _weight = TextEditingController(text: '1.0');
   final _count = TextEditingController(text: '1');
+  final _recipientName = TextEditingController();
+  final _recipientPhone = TextEditingController();
 
   PickedLocation? _origin;
   PickedLocation? _destination;
@@ -34,6 +38,8 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
     _description.dispose();
     _weight.dispose();
     _count.dispose();
+    _recipientName.dispose();
+    _recipientPhone.dispose();
     super.dispose();
   }
 
@@ -62,6 +68,34 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
         _destination = result;
       }
     });
+
+    if (Env.useDriverApi && !Env.isSupabaseConfigured && mounted) {
+      await promptSaveToAddressBook(
+        context: context,
+        ref: ref,
+        location: result,
+        kind: isOrigin ? AddressBookKind.pickup : AddressBookKind.delivery,
+      );
+    }
+  }
+
+  Future<void> _pickFromAddressBook({required bool isOrigin}) async {
+    final picked = await showAddressBookPicker(
+      context: context,
+      ref: ref,
+      kind: isOrigin ? AddressBookKind.pickup : AddressBookKind.delivery,
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _locationError = null;
+      if (isOrigin) {
+        _origin = picked;
+      } else {
+        _destination = picked;
+        _recipientName.text = picked.contactName ?? _recipientName.text;
+        _recipientPhone.text = picked.phone ?? _recipientPhone.text;
+      }
+    });
   }
 
   Future<void> _submit() async {
@@ -70,7 +104,7 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
     if (_origin == null || _destination == null) {
       setState(() {
         _locationError =
-            'Pin both pickup and delivery on the map before creating.';
+            'Choose both pickup and delivery (map or address book) before creating.';
       });
       return;
     }
@@ -102,10 +136,16 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
           : _description.text.trim(),
       weightKg: double.parse(_weight.text.trim()),
       packageCount: int.parse(_count.text.trim()),
+      recipientName: _recipientName.text.trim(),
+      recipientPhone: _recipientPhone.text.trim().isEmpty
+          ? null
+          : _recipientPhone.text.trim(),
+      senderName: origin.contactName,
     );
 
-    final shipment =
-        await ref.read(createShipmentViewModelProvider.notifier).submit(request);
+    final shipment = await ref
+        .read(createShipmentViewModelProvider.notifier)
+        .submit(request);
 
     if (!mounted) return;
 
@@ -127,6 +167,7 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(createShipmentViewModelProvider);
     final theme = Theme.of(context);
+    final showBook = Env.useDriverApi && !Env.isSupabaseConfigured;
 
     return Scaffold(
       appBar: AppBar(title: const Text('New Shipment')),
@@ -165,19 +206,31 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
                 const SizedBox(height: 16),
               ],
               Text(
-                'Pickup (Origin)',
+                'From (Pickup)',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Search a place, then move the pin for accuracy. Zone is set from the pin.',
+                showBook
+                    ? 'Choose a saved pickup address, or pin a new place on the map.'
+                    : 'Search a place, then move the pin for accuracy.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 12),
+              if (showBook) ...[
+                OutlinedButton.icon(
+                  onPressed: state.isLoading
+                      ? null
+                      : () => _pickFromAddressBook(isOrigin: true),
+                  icon: const Icon(Icons.menu_book_outlined),
+                  label: const Text('From address book'),
+                ),
+                const SizedBox(height: 8),
+              ],
               _LocationPickCard(
                 title: 'Pickup on map',
                 emptyHint: 'Tap to search & pin pickup in Sabah',
@@ -187,25 +240,65 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Delivery (Destination)',
+                'To (Delivery)',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Same flow for the delivery stop — search first, refine with the pin.',
+                showBook
+                    ? 'Choose a saved delivery address, or pin a new place on the map.'
+                    : 'Same flow for the delivery stop — search first, refine with the pin.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 12),
+              if (showBook) ...[
+                OutlinedButton.icon(
+                  onPressed: state.isLoading
+                      ? null
+                      : () => _pickFromAddressBook(isOrigin: false),
+                  icon: const Icon(Icons.menu_book_outlined),
+                  label: const Text('From address book'),
+                ),
+                const SizedBox(height: 8),
+              ],
               _LocationPickCard(
                 title: 'Delivery on map',
                 emptyHint: 'Tap to search & pin delivery in Sabah',
                 location: _destination,
                 enabled: !state.isLoading,
                 onPick: () => _pickLocation(isOrigin: false),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Recipient',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _recipientName,
+                decoration: const InputDecoration(
+                  labelText: 'Recipient name',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                textCapitalization: TextCapitalization.words,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Recipient name is required'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _recipientPhone,
+                decoration: const InputDecoration(
+                  labelText: 'Recipient phone (optional)',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+                keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 24),
               Text(
@@ -232,8 +325,9 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Weight (kg)',
                       ),
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Required';
                         final n = double.tryParse(v);
@@ -246,9 +340,7 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _count,
-                      decoration: const InputDecoration(
-                        labelText: 'Packages',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Packages'),
                       keyboardType: TextInputType.number,
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Required';
@@ -264,10 +356,10 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
               Text(
                 Env.useDriverApi
                     ? 'Creates an IPOSB consignment. The API plans hubs/route from '
-                        'origin→dest zones (and may auto-assign a pickup driver when '
-                        'a strong zone/route match exists).'
+                          'origin→dest zones (and may auto-assign a pickup driver when '
+                          'a strong zone/route match exists).'
                     : 'Tip: pin Kota Kinabalu Metro → Sandakan so the Assignment '
-                        'Engine can match the Sabah demo routing rule and staff seed.',
+                          'Engine can match the Sabah demo routing rule and staff seed.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -332,10 +424,7 @@ class _LocationPickCard extends StatelessWidget {
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            title,
-                            style: theme.textTheme.labelLarge,
-                          ),
+                          Text(title, style: theme.textTheme.labelLarge),
                           const SizedBox(height: 4),
                           Text(
                             location!.shortSummary,
@@ -343,6 +432,14 @@ class _LocationPickCard extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                          if (location!.contactName != null &&
+                              location!.contactName!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              location!.contactName!,
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 8,

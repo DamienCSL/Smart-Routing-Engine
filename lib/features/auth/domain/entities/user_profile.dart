@@ -13,6 +13,10 @@ class UserProfile extends Equatable {
     required this.createdAt,
     this.phone,
     this.avatarUrl,
+    this.accountNo,
+    this.driverId,
+    this.dispatcherId,
+    this.preferredZones = const [],
   });
 
   final String id;
@@ -24,10 +28,18 @@ class UserProfile extends Equatable {
   final bool isActive;
   final DateTime createdAt;
 
+  /// Customer account number (IPOSB `cust_ac_no`).
+  final String? accountNo;
+  final int? driverId;
+  final int? dispatcherId;
+  final List<String> preferredZones;
+
   UserProfile copyWith({
     String? fullName,
     String? phone,
     String? avatarUrl,
+    String? accountNo,
+    List<String>? preferredZones,
   }) {
     return UserProfile(
       id: id,
@@ -38,6 +50,10 @@ class UserProfile extends Equatable {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       isActive: isActive,
       createdAt: createdAt,
+      accountNo: accountNo ?? this.accountNo,
+      driverId: driverId,
+      dispatcherId: dispatcherId,
+      preferredZones: preferredZones ?? this.preferredZones,
     );
   }
 
@@ -51,5 +67,9 @@ class UserProfile extends Equatable {
         avatarUrl,
         isActive,
         createdAt,
+        accountNo,
+        driverId,
+        dispatcherId,
+        preferredZones,
       ];
 }

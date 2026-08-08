@@ -18,6 +18,9 @@ class CreateShipmentRequest extends Equatable {
     required this.weightKg,
     required this.packageCount,
     this.packageDescription,
+    this.recipientName,
+    this.recipientPhone,
+    this.senderName,
   });
 
   final String originAddress;
@@ -35,6 +38,9 @@ class CreateShipmentRequest extends Equatable {
   final String? packageDescription;
   final double weightKg;
   final int packageCount;
+  final String? recipientName;
+  final String? recipientPhone;
+  final String? senderName;
 
   @override
   List<Object?> get props => [
@@ -53,5 +59,8 @@ class CreateShipmentRequest extends Equatable {
         packageDescription,
         weightKg,
         packageCount,
+        recipientName,
+        recipientPhone,
+        senderName,
       ];
 }
