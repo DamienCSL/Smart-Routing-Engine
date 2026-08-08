@@ -22,7 +22,7 @@ class CustomerHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BBB Express'),
+        title: const Text('IPOSB'),
         actions: [
           IconButton(
             tooltip: 'Refresh',

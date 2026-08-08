@@ -67,10 +67,12 @@ class _OpsMapScreenState extends State<OpsMapScreen> {
   List<GeocodeSuggestion> _suggestions = const [];
   bool _searching = false;
   bool _resolvingPin = false;
+  String? _pinResolveError;
   String? _searchError;
   late LatLng _pin;
   PickedLocation? _picked;
   var _didFitRoutes = false;
+  var _resolveGeneration = 0;
 
   @override
   void initState() {
@@ -171,34 +173,49 @@ class _OpsMapScreenState extends State<OpsMapScreen> {
 
   Future<void> _selectSuggestion(GeocodeSuggestion suggestion) async {
     _searchFocus.unfocus();
+    _resolveGeneration++;
+    final zone = SabahGeo.zoneCodeFor(suggestion.point);
     setState(() {
       _suggestions = const [];
       _searchController.text = suggestion.label;
       _pin = suggestion.point;
+      _pinResolveError = null;
+      // Preserve the exact OpenStreetMap result selected by the customer.
+      _picked = PickedLocation(
+        point: suggestion.point,
+        label: suggestion.label,
+        zoneCode: zone,
+        city: suggestion.city,
+        state: suggestion.state ?? 'Sabah',
+      );
+      _resolvingPin = false;
     });
     _mapController.move(suggestion.point, 14);
-    await _resolvePin(suggestion.point);
   }
 
   Future<void> _resolvePin(LatLng point) async {
+    final generation = ++_resolveGeneration;
     final zone = SabahGeo.zoneCodeFor(point);
-    setState(() => _resolvingPin = true);
+    setState(() {
+      _resolvingPin = true;
+      _pinResolveError = null;
+      _picked = null;
+    });
     try {
       final picked = await _geocoder.reverse(point, zoneCode: zone);
-      if (!mounted) return;
+      if (!mounted || generation != _resolveGeneration) return;
       setState(() {
         _picked = picked;
+        _searchController.text = picked.label;
         _resolvingPin = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _resolveGeneration) return;
       setState(() {
-        _picked = PickedLocation(
-          point: point,
-          label:
-              '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}',
-          zoneCode: zone,
-        );
+        _picked = null;
+        _pinResolveError =
+            'Could not find an address for this pin. Search and choose a '
+            'location, or move the pin and try again.';
         _resolvingPin = false;
       });
     }
@@ -211,7 +228,11 @@ class _OpsMapScreenState extends State<OpsMapScreen> {
       );
       return;
     }
-    setState(() => _pin = point);
+    setState(() {
+      _pin = point;
+      _searchController.clear();
+      _suggestions = const [];
+    });
     _resolvePin(point);
   }
 
@@ -240,16 +261,14 @@ class _OpsMapScreenState extends State<OpsMapScreen> {
     final routeSummary = widget.drivingRoutes.isEmpty
         ? null
         : widget.drivingRoutes
-            .map((r) {
-              final name = r.label == null ? '' : '${r.label}: ';
-              return '$name${r.distanceLabel} · ${r.durationLabel}';
-            })
-            .join('\n');
+              .map((r) {
+                final name = r.label == null ? '' : '${r.label}: ';
+                return '$name${r.distanceLabel} · ${r.durationLabel}';
+              })
+              .join('\n');
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
+      appBar: AppBar(title: Text(widget.title)),
       body: Column(
         children: [
           Padding(
@@ -277,17 +296,17 @@ class _OpsMapScreenState extends State<OpsMapScreen> {
                             ),
                           )
                         : (_searchController.text.isEmpty
-                            ? null
-                            : IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _suggestions = const [];
-                                    _searchError = null;
-                                  });
-                                },
-                              )),
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {
+                                      _suggestions = const [];
+                                      _searchError = null;
+                                    });
+                                  },
+                                )),
                   ),
                 ),
                 if (_searchError != null) ...[
@@ -336,8 +355,8 @@ class _OpsMapScreenState extends State<OpsMapScreen> {
                     initialZoom: widget.initialPoint != null
                         ? 14
                         : (widget.purpose == SabahMapPurpose.addressGeocode
-                            ? 11
-                            : SabahGeo.defaultZoom),
+                              ? 11
+                              : SabahGeo.defaultZoom),
                     minZoom: 6.5,
                     maxZoom: 18,
                     onTap: _onMapTap,
@@ -352,6 +371,11 @@ class _OpsMapScreenState extends State<OpsMapScreen> {
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.iposb.smartrouting',
                     ),
+                    const RichAttributionWidget(
+                      attributions: [
+                        TextSourceAttribution('OpenStreetMap contributors'),
+                      ],
+                    ),
                     if (widget.drivingRoutes.isNotEmpty)
                       PolylineLayer(
                         polylines: [
@@ -359,7 +383,8 @@ class _OpsMapScreenState extends State<OpsMapScreen> {
                             Polyline(
                               points: widget.drivingRoutes[i].points,
                               strokeWidth: 5,
-                              color: Color.lerp(
+                              color:
+                                  Color.lerp(
                                     theme.colorScheme.primary,
                                     theme.colorScheme.tertiary,
                                     widget.drivingRoutes.length == 1
@@ -473,6 +498,15 @@ class _OpsMapScreenState extends State<OpsMapScreen> {
                           if (_resolvingPin)
                             const LinearProgressIndicator()
                           else ...[
+                            if (_pinResolveError != null) ...[
+                              Text(
+                                _pinResolveError!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.error,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
                             Text(
                               _picked?.shortSummary ?? 'Resolving address…',
                               style: theme.textTheme.titleSmall?.copyWith(

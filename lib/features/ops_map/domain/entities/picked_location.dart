@@ -21,7 +21,12 @@ class PickedLocation {
   final String? phone;
 
   String get shortSummary {
-    final cityPart = (city == null || city!.isEmpty) ? '' : ', $city';
+    final cityValue = city?.trim() ?? '';
+    final cityPart =
+        cityValue.isEmpty ||
+            label.toLowerCase().contains(cityValue.toLowerCase())
+        ? ''
+        : ', $cityValue';
     return '$label$cityPart';
   }
 }
