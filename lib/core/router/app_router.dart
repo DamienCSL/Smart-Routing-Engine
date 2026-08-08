@@ -13,6 +13,7 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/customer/presentation/screens/create_shipment_screen.dart';
 import '../../features/customer/presentation/screens/customer_home_screen.dart';
+import '../../features/customer/presentation/screens/address_book_screen.dart';
 import '../../features/customer/presentation/screens/shipment_detail_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_home_screen.dart';
 import '../../features/drop_point/presentation/screens/drop_point_home_screen.dart';
@@ -174,6 +175,11 @@ final routerProvider = Provider<GoRouter>((ref) {
               },
             ),
             GoRoute(
+              path: 'addresses',
+              name: 'customerAddressBook',
+              builder: (context, state) => const AddressBookScreen(),
+            ),
+            GoRoute(
               path: 'shipments/:id',
               name: 'customerShipmentDetail',
               builder: (context, state) {
@@ -238,6 +244,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                   : const AddressPickArgs(title: 'Pick location');
               return CustomerAddressPickerScreen(args: args);
             },
+          ),
+          GoRoute(
+            path: 'addresses',
+            name: 'customerAddressBook',
+            builder: (context, state) => const AddressBookScreen(),
           ),
           GoRoute(
             path: 'shipments/:id',

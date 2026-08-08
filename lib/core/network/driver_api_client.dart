@@ -128,6 +128,17 @@ class DriverApiClient {
     throw const ServerException('Create address response missing address');
   }
 
+  Future<Map<String, dynamic>> updateCustomerAddress(
+    int id,
+    Map<String, dynamic> body,
+  ) async {
+    final json = await patchJson('/customer/addresses/$id', body: body);
+    final address = json['address'];
+    if (address is Map<String, dynamic>) return address;
+    if (address is Map) return Map<String, dynamic>.from(address);
+    throw const ServerException('Update address response missing address');
+  }
+
   Future<void> deleteCustomerAddress(int id) async {
     await deleteJson('/customer/addresses/$id');
   }

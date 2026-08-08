@@ -230,6 +230,14 @@ class _CreateShipmentScreenState extends ConsumerState<CreateShipmentScreen> {
                   label: const Text('From address book'),
                 ),
                 const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: state.isLoading
+                      ? null
+                      : () => context.push(RoutePaths.customerAddressBook),
+                  icon: const Icon(Icons.edit_note_outlined),
+                  label: const Text('Manage address book'),
+                ),
+                const SizedBox(height: 8),
               ],
               _LocationPickCard(
                 title: 'Pickup on map',

@@ -11,8 +11,6 @@ import '../../../../shared/enums/user_role.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/domain/entities/user_profile.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
-import '../../../customer/domain/entities/saved_address.dart';
-import '../../../customer/presentation/widgets/address_book_sheet.dart';
 import '../../../dispatcher/presentation/providers/dispatcher_providers.dart';
 import '../../../hub_worker/presentation/providers/hub_worker_providers.dart';
 
@@ -94,7 +92,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       setState(() => _isSaving = true);
       try {
-        await ref.read(driverApiSessionProvider.notifier).updateProfile(
+        await ref
+            .read(driverApiSessionProvider.notifier)
+            .updateProfile(
               fullName: _nameController.text.trim(),
               phone: _phoneController.text.trim().isEmpty
                   ? null
@@ -110,14 +110,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ref.invalidate(hubWorkerProfileProvider);
         ref.invalidate(dispatcherProfileProvider);
         setState(() => _isEditing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Profile updated')));
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$e')));
       } finally {
         if (mounted) setState(() => _isSaving = false);
       }
@@ -126,7 +126,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     setState(() => _isSaving = true);
 
-    final result = await ref.read(authRepositoryProvider).updateProfile(
+    final result = await ref
+        .read(authRepositoryProvider)
+        .updateProfile(
           fullName: _nameController.text.trim(),
           phone: _phoneController.text.trim().isEmpty
               ? null
@@ -141,14 +143,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       success: (_) {
         ref.invalidate(currentUserProfileProvider);
         setState(() => _isEditing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Profile updated')));
       },
       failure: (message) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       },
     );
   }
@@ -164,11 +166,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _openAddressBook() async {
-    await showAddressBookPicker(
-      context: context,
-      ref: ref,
-      kind: AddressBookKind.both,
-    );
+    await context.push(RoutePaths.customerAddressBook);
   }
 
   @override
@@ -248,8 +246,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         const Divider(height: 24),
                         _ProfileField(
                           label: 'Phone',
-                          value: (profile.phone == null ||
-                                  profile.phone!.isEmpty)
+                          value:
+                              (profile.phone == null || profile.phone!.isEmpty)
                               ? '—'
                               : profile.phone!,
                           icon: Icons.phone_outlined,
@@ -279,7 +277,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     canEditZones: _canEditZones,
                     onZonesChanged: (zones) =>
                         setState(() => _preferredZones = zones),
-                    onManageAddresses: Env.useDriverApi &&
+                    onManageAddresses:
+                        Env.useDriverApi &&
                             !Env.isSupabaseConfigured &&
                             profile.role == UserRole.customer
                         ? _openAddressBook
@@ -502,7 +501,8 @@ class _HubOpsDetails extends ConsumerWidget {
       children: [
         _ProfileField(
           label: 'Driver ID',
-          value: hub?.id ??
+          value:
+              hub?.id ??
               (profile.driverId != null ? '${profile.driverId}' : '—'),
           icon: Icons.local_shipping_outlined,
         ),
@@ -568,10 +568,9 @@ class _DispatcherDetails extends ConsumerWidget {
       children: [
         _ProfileField(
           label: 'Dispatcher ID',
-          value: disp?.id ??
-              (profile.dispatcherId != null
-                  ? '${profile.dispatcherId}'
-                  : '—'),
+          value:
+              disp?.id ??
+              (profile.dispatcherId != null ? '${profile.dispatcherId}' : '—'),
           icon: Icons.support_agent_outlined,
         ),
         const Divider(height: 24),

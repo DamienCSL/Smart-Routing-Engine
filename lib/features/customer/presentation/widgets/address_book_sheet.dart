@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/demo_zones.dart';
+import '../../../../core/constants/route_paths.dart';
 import '../../../../core/network/driver_api_providers.dart';
 import '../../../ops_map/domain/entities/picked_location.dart';
 import '../../domain/entities/saved_address.dart';
@@ -119,15 +121,15 @@ Future<void> promptSaveToAddressBook({
     ref.invalidate(customerAddressBookProvider(kind));
     ref.invalidate(customerAddressBookProvider(null));
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved to address book')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Saved to address book')));
     }
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save address: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save address: $e')));
     }
   } finally {
     labelController.dispose();
@@ -153,16 +155,29 @@ class _AddressBookSheet extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-            child: Text(
-              kind == AddressBookKind.pickup
-                  ? 'Saved pickup addresses'
-                  : kind == AddressBookKind.delivery
-                      ? 'Saved delivery addresses'
-                      : 'Address book',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+            padding: const EdgeInsets.fromLTRB(20, 4, 12, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    kind == AddressBookKind.pickup
+                        ? 'Saved pickup addresses'
+                        : kind == AddressBookKind.delivery
+                        ? 'Saved delivery addresses'
+                        : 'Address book',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.push(RoutePaths.customerAddressBook);
+                  },
+                  child: const Text('Manage'),
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -183,7 +198,7 @@ class _AddressBookSheet extends ConsumerWidget {
                       padding: const EdgeInsets.all(24),
                       child: Text(
                         'No saved addresses yet.\n'
-                        'Pin a location on the map, then tap Save to address book.',
+                        'Tap Manage to add one, or pin a location on the map.',
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
@@ -203,8 +218,8 @@ class _AddressBookSheet extends ConsumerWidget {
                         kind == AddressBookKind.pickup
                             ? Icons.home_outlined
                             : kind == AddressBookKind.delivery
-                                ? Icons.location_on_outlined
-                                : Icons.menu_book_outlined,
+                            ? Icons.location_on_outlined
+                            : Icons.menu_book_outlined,
                         color: theme.colorScheme.primary,
                       ),
                       title: Text(
@@ -214,7 +229,8 @@ class _AddressBookSheet extends ConsumerWidget {
                       subtitle: Text(
                         [
                           a.summary,
-                          if (a.contactName != null && a.contactName!.isNotEmpty)
+                          if (a.contactName != null &&
+                              a.contactName!.isNotEmpty)
                             a.contactName!,
                           if (a.zoneCode != null && a.zoneCode!.isNotEmpty)
                             DemoZones.labelOf(a.zoneCode!),
@@ -229,7 +245,9 @@ class _AddressBookSheet extends ConsumerWidget {
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: const Text('Delete address?'),
-                              content: Text('Remove "${a.label}" from your book?'),
+                              content: Text(
+                                'Remove "${a.label}" from your book?',
+                              ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, false),
@@ -251,9 +269,9 @@ class _AddressBookSheet extends ConsumerWidget {
                             ref.invalidate(customerAddressBookProvider(null));
                           } catch (e) {
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('$e')),
-                              );
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(SnackBar(content: Text('$e')));
                             }
                           }
                         },
