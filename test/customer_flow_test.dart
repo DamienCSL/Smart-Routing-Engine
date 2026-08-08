@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iposb/core/constants/route_paths.dart';
 import 'package:iposb/core/router/role_redirect.dart';
+import 'package:iposb/core/utils/shipment_qr_payload.dart';
 import 'package:iposb/features/shipment/data/mappers/customer_order_mapper.dart';
 import 'package:iposb/shared/enums/shipment_status.dart';
 import 'package:iposb/shared/enums/user_role.dart';
@@ -46,5 +47,13 @@ void main() {
     expect(shipment.originLat, 5.9804);
     expect(shipment.destinationLng, 118.1179);
     expect(shipment.status, ShipmentStatus.pending);
+  });
+
+  test('shipment QR payload resolves to the same CN for scanning', () {
+    const cn = '20001234';
+    expect(ShipmentQrPayload.decode(ShipmentQrPayload.encode(cn)), cn);
+    expect(ShipmentQrPayload.decode('https://iposb.example/track?cn=$cn'), cn);
+    expect(ShipmentQrPayload.decode('{"cnNo":"$cn"}'), cn);
+    expect(ShipmentQrPayload.decode('IPOSB:CN:$cn'), cn);
   });
 }

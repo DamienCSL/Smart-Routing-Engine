@@ -8,6 +8,7 @@ import '../../../../core/constants/iposb_status_map.dart';
 import '../../../../core/constants/route_paths.dart';
 import '../../../../core/network/driver_api_providers.dart';
 import '../../../../core/utils/provider_refresh.dart';
+import '../../../../core/utils/shipment_qr_payload.dart';
 import '../providers/hub_worker_providers.dart';
 
 /// Scan CN barcode/QR, then post the next allowed SOP scan.
@@ -48,9 +49,10 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
     super.dispose();
   }
 
-  Future<void> _loadCn(String raw) async {
-    final cn = raw.trim();
+  Future<void> _loadCn(String raw, {bool promptForNextStatus = false}) async {
+    final cn = ShipmentQrPayload.decode(raw);
     if (cn.isEmpty) return;
+    List<String> loadedNextScans = const [];
     setState(() {
       _busy = true;
       _error = null;
@@ -58,30 +60,93 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
     });
     try {
       final api = ref.read(driverApiClientProvider);
-      try {
-        final json = await api.getJson('/driver/jobs/$cn');
-        final job = json['job'] as Map<String, dynamic>?;
-        setState(() {
-          _nextScans = (job?['nextScans'] as List<dynamic>? ?? const [])
-              .map((e) => e.toString())
-              .toList();
-          _customerLabel = job?['customerLabel']?.toString();
-        });
-      } catch (_) {
-        // Public tracking fallback when job is not assigned to this driver yet.
-        final track = await api.getPublicJson('/tracking/$cn');
-        setState(() {
-          _nextScans = (track['nextScans'] as List<dynamic>? ?? const [])
-              .map((e) => e.toString())
-              .toList();
-          _customerLabel = track['customerLabel']?.toString();
-        });
-      }
+      // This endpoint also verifies that the signed-in staff member is
+      // assigned to the shipment before any transition is offered.
+      final json = await api.getJson('/driver/jobs/$cn');
+      final job = json['job'] as Map<String, dynamic>?;
+      loadedNextScans = (job?['nextScans'] as List<dynamic>? ?? const [])
+          .map((e) => e.toString())
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _nextScans = loadedNextScans;
+        _customerLabel = job?['customerLabel']?.toString();
+      });
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+    if (mounted && promptForNextStatus && _error == null) {
+      await _promptForNextStatus(loadedNextScans);
+    }
+  }
+
+  Future<void> _promptForNextStatus(List<String> statuses) async {
+    if (statuses.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This shipment has no further status updates.'),
+        ),
+      );
+      return;
+    }
+
+    String? selected;
+    if (statuses.length == 1) {
+      final status = statuses.single;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Update shipment status?'),
+          content: Text(
+            'Move CN $_cnNo to “${IposbStatusMap.labelOf(status)}”?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Update status'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) selected = status;
+    } else {
+      selected = await showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Text(
+                  'Choose the next shipment status',
+                  style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              for (final status in statuses)
+                ListTile(
+                  leading: const Icon(Icons.check_circle_outline),
+                  title: Text(IposbStatusMap.labelOf(status)),
+                  onTap: () => Navigator.pop(sheetContext, status),
+                ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (selected != null && mounted) await _postScan(selected);
   }
 
   Future<void> _postScan(String status) async {
@@ -152,7 +217,7 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
                     final value = barcodes.first.rawValue;
                     if (value == null || value.isEmpty) return;
                     _handledCode = true;
-                    _loadCn(value).whenComplete(() {
+                    _loadCn(value, promptForNextStatus: true).whenComplete(() {
                       Future.delayed(const Duration(seconds: 2), () {
                         if (mounted) _handledCode = false;
                       });
@@ -188,8 +253,7 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
               ),
               const SizedBox(width: 8),
               FilledButton(
-                onPressed:
-                    _busy ? null : () => _loadCn(_manualController.text),
+                onPressed: _busy ? null : () => _loadCn(_manualController.text),
                 child: const Text('Load'),
               ),
             ],

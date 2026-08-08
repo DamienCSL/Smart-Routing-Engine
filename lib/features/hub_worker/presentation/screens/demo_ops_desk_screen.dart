@@ -9,6 +9,7 @@ import '../../../../core/constants/iposb_status_map.dart';
 import '../../../../core/constants/route_paths.dart';
 import '../../../../core/network/driver_api_client.dart';
 import '../../../../core/network/driver_api_providers.dart';
+import '../../../../core/utils/shipment_qr_payload.dart';
 import '../providers/hub_worker_providers.dart';
 
 /// Full E2E demo: create CN → assign driver → scan hops → customer track.
@@ -219,8 +220,9 @@ class _DemoOpsDeskScreenState extends ConsumerState<DemoOpsDeskScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cn = _cnNo;
-    final scanCodes =
-        _nextScans.isNotEmpty ? _nextScans : (_assigned ? _pipelineHints : const <String>[]);
+    final scanCodes = _nextScans.isNotEmpty
+        ? _nextScans
+        : (_assigned ? _pipelineHints : const <String>[]);
 
     return Scaffold(
       appBar: AppBar(
@@ -310,7 +312,7 @@ class _DemoOpsDeskScreenState extends ConsumerState<DemoOpsDeskScreen> {
             const SizedBox(height: 8),
             Center(
               child: QrImageView(
-                data: cn,
+                data: ShipmentQrPayload.encode(cn),
                 size: 180,
                 backgroundColor: Colors.white,
               ),
@@ -325,9 +327,9 @@ class _DemoOpsDeskScreenState extends ConsumerState<DemoOpsDeskScreen> {
                   onPressed: () async {
                     await Clipboard.setData(ClipboardData(text: cn));
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('CN copied')),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('CN copied')));
                   },
                   icon: const Icon(Icons.copy, size: 18),
                 ),
@@ -343,7 +345,10 @@ class _DemoOpsDeskScreenState extends ConsumerState<DemoOpsDeskScreen> {
                 ),
               ),
             const SizedBox(height: 20),
-            Text('3. Dispatch — assign driver', style: theme.textTheme.titleMedium),
+            Text(
+              '3. Dispatch — assign driver',
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               value: _jobType,
@@ -397,8 +402,8 @@ class _DemoOpsDeskScreenState extends ConsumerState<DemoOpsDeskScreen> {
             Text(
               _assigned
                   ? (_nextScans.isEmpty
-                      ? 'Use driver scans in order: PKU → ARR → SRT → SHB → OFD → POD'
-                      : 'Allowed next (driver): ${_nextScans.join(', ')}')
+                        ? 'Use driver scans in order: PKU → ARR → SRT → SHB → OFD → POD'
+                        : 'Allowed next (driver): ${_nextScans.join(', ')}')
                   : 'Assign a driver first for the real flow, or use Ops hops below.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -432,8 +437,7 @@ class _DemoOpsDeskScreenState extends ConsumerState<DemoOpsDeskScreen> {
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: () =>
-                  context.push('${RoutePaths.trackOrder}?cn=$cn'),
+              onPressed: () => context.push('${RoutePaths.trackOrder}?cn=$cn'),
               icon: const Icon(Icons.travel_explore),
               label: const Text('5. Open customer Track view'),
             ),

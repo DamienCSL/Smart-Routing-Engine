@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/config/env.dart';
 import '../../../../core/utils/google_maps_launcher.dart';
 import '../../../../core/utils/provider_refresh.dart';
+import '../../../../core/utils/shipment_qr_payload.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../driver/domain/entities/driver_task.dart';
 import '../../../shipment/presentation/providers/shipment_providers.dart';
@@ -33,7 +34,10 @@ class HubWorkerTaskDetailScreen extends ConsumerWidget {
             icon: const Icon(Icons.refresh),
             onPressed: () async {
               await Future.wait([
-                refreshAndWait(ref, hubWorkerTaskDetailProvider(shipmentId).future),
+                refreshAndWait(
+                  ref,
+                  hubWorkerTaskDetailProvider(shipmentId).future,
+                ),
                 refreshAndWait(ref, shipmentHistoryProvider(shipmentId).future),
               ]);
             },
@@ -111,14 +115,16 @@ class HubWorkerTaskDetailScreen extends ConsumerWidget {
                       if (shipment.eta != null)
                         _Row(
                           label: 'ETA',
-                          value: DateFormat.yMMMd()
-                              .add_jm()
-                              .format(shipment.eta!.toLocal()),
+                          value: DateFormat.yMMMd().add_jm().format(
+                            shipment.eta!.toLocal(),
+                          ),
                         ),
                       const SizedBox(height: 12),
                       Center(
                         child: QrImageView(
-                          data: shipment.trackingNumber,
+                          data: ShipmentQrPayload.encode(
+                            shipment.trackingNumber,
+                          ),
                           size: 140,
                           backgroundColor: Colors.white,
                         ),
@@ -143,9 +149,7 @@ class HubWorkerTaskDetailScreen extends ConsumerWidget {
                             if (!ok) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text(
-                                    'Could not open Google Maps.',
-                                  ),
+                                  content: Text('Could not open Google Maps.'),
                                 ),
                               );
                             }
@@ -160,10 +164,10 @@ class HubWorkerTaskDetailScreen extends ConsumerWidget {
                               : shipment.destinationLng;
                           final opened =
                               await GoogleMapsLauncher.openDirections(
-                            lat: lat,
-                            lng: lng,
-                            address: address,
-                          );
+                                lat: lat,
+                                lng: lng,
+                                address: address,
+                              );
                           if (!context.mounted) return;
                           if (!opened) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -262,12 +266,13 @@ class HubWorkerTaskDetailScreen extends ConsumerWidget {
 
     if (confirmed != true) return;
 
-    final ok =
-        await ref.read(hubWorkerActionViewModelProvider.notifier).updateStatus(
-              shipmentId: task.id,
-              newStatus: action.status,
-              apiStatus: action.apiStatus,
-            );
+    final ok = await ref
+        .read(hubWorkerActionViewModelProvider.notifier)
+        .updateStatus(
+          shipmentId: task.id,
+          newStatus: action.status,
+          apiStatus: action.apiStatus,
+        );
 
     if (!context.mounted) return;
 

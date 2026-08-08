@@ -3,11 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/constants/route_paths.dart';
 import '../../../../core/network/driver_api_providers.dart';
 import '../../../../core/utils/provider_refresh.dart';
+import '../../../../core/utils/shipment_qr_payload.dart';
 import '../../../../shared/enums/shipment_status.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../shipment/presentation/providers/shipment_providers.dart';
@@ -171,6 +173,48 @@ class ShipmentDetailScreen extends ConsumerWidget {
                               shipment.eta!.toLocal(),
                             ),
                           ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Shipment QR',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        QrImageView(
+                          data: ShipmentQrPayload.encode(
+                            shipment.trackingNumber,
+                          ),
+                          size: 180,
+                          backgroundColor: Colors.white,
+                          semanticsLabel:
+                              'Shipment ${shipment.trackingNumber} QR code',
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          shipment.trackingNumber,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Show this QR to authorized staff when your parcel '
+                          'is handed over or processed.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ),
