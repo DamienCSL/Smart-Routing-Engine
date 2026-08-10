@@ -28,6 +28,7 @@ import '../../features/hub_worker/presentation/screens/hub_worker_task_detail_sc
 import '../../features/tracking/presentation/screens/track_order_screen.dart';
 import '../../features/notification/presentation/screens/notifications_screen.dart';
 import '../../features/ops_map/presentation/screens/driver_navigate_screen.dart';
+import '../../features/ops_map/presentation/screens/driver_run_sheet_map_screen.dart';
 import '../../features/ops_map/presentation/screens/role_ops_map_screens.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
@@ -123,16 +124,7 @@ List<RouteBase> _hubWorkerRoutes() => [
       GoRoute(
         path: 'map',
         name: 'hubWorkerMap',
-        builder: (context, state) {
-          final q = state.uri.queryParameters['q'];
-          final lat = double.tryParse(state.uri.queryParameters['lat'] ?? '');
-          final lng = double.tryParse(state.uri.queryParameters['lng'] ?? '');
-          return HubWorkerOpsMapScreen(
-            initialQuery: q,
-            initialLat: lat,
-            initialLng: lng,
-          );
-        },
+        builder: (context, state) => const DriverRunSheetMapScreen(),
       ),
       GoRoute(
         path: 'navigate',

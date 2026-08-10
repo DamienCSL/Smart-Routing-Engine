@@ -114,4 +114,19 @@ class OsrmRouteService {
       ),
     );
   }
+
+  /// Sequential legs: start → stop1 → stop2 → …
+  Future<List<DrivingRoute>> chainedRoute({
+    required LatLng start,
+    required List<({LatLng to, String? label})> stops,
+  }) async {
+    if (stops.isEmpty) return const [];
+    final legs = <DrivingRoute>[];
+    var from = start;
+    for (final stop in stops) {
+      legs.add(await route(from: from, to: stop.to, label: stop.label));
+      from = stop.to;
+    }
+    return legs;
+  }
 }

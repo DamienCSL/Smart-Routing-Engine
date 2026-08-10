@@ -10,6 +10,7 @@ import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../driver/domain/entities/driver_task.dart';
 import '../../../driver/presentation/widgets/driver_task_tile.dart';
+import '../../../ops_map/presentation/providers/driver_run_sheet_provider.dart';
 import '../../../ops_map/presentation/screens/driver_navigate_screen.dart';
 import '../../../notification/presentation/widgets/notification_bell_button.dart';
 import '../providers/hub_worker_providers.dart';
@@ -22,6 +23,7 @@ class HubWorkerHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(currentUserProfileProvider);
     final hubAsync = ref.watch(hubWorkerProfileProvider);
+    final runSheet = ref.watch(driverRunSheetProvider);
 
     return DefaultTabController(
       length: 2,
@@ -45,7 +47,11 @@ class HubWorkerHomeScreen extends ConsumerWidget {
               onPressed: () => context.push(RoutePaths.hubWorkerScan),
             ),
             IconButton(
-              icon: const Icon(Icons.map_outlined),
+              icon: Badge(
+                isLabelVisible: runSheet.isNotEmpty,
+                label: Text('${runSheet.length}'),
+                child: const Icon(Icons.map_outlined),
+              ),
               tooltip: 'Route to pickup',
               onPressed: () => context.push(RoutePaths.hubWorkerMap),
             ),
@@ -127,6 +133,26 @@ class HubWorkerHomeScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (runSheet.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Material(
+                      color: Theme.of(context).colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                      child: ListTile(
+                        leading: const Icon(Icons.alt_route),
+                        title: Text(
+                          '${runSheet.length} consignment${runSheet.length == 1 ? '' : 's'} on route',
+                        ),
+                        subtitle: Text(
+                          'Go first: CN ${runSheet.first.cnNo} · ${runSheet.first.typeLabel}'
+                          '${runSheet.length > 1 ? ' · Next: CN ${runSheet[1].cnNo}' : ''}',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push(RoutePaths.hubWorkerMap),
+                      ),
+                    ),
+                  ),
                 const Expanded(
                   child: TabBarView(
                     children: [
@@ -154,6 +180,7 @@ class _TaskList extends ConsumerWidget {
     final tasksAsync = type == DriverTaskType.pickup
         ? ref.watch(hubPickupTasksProvider)
         : ref.watch(hubDeliveryTasksProvider);
+    final runSheet = ref.watch(driverRunSheetProvider);
     final theme = Theme.of(context);
 
     return RefreshIndicator(
@@ -231,11 +258,18 @@ class _TaskList extends ConsumerWidget {
             itemCount: tasks.length,
             itemBuilder: (context, index) {
               final task = tasks[index];
+              final stopId = DriverRouteStop.fromTask(task).id;
+              final stopIndex =
+                  runSheet.indexWhere((s) => s.id == stopId);
               return DriverTaskTile(
                 task: task,
+                routeStopNumber: stopIndex >= 0 ? stopIndex + 1 : null,
                 onTap: () => context.push(
                   RoutePaths.hubWorkerTaskDetail(task.id),
                 ),
+                onToggleRoute: () {
+                  ref.read(driverRunSheetProvider.notifier).toggleTask(task);
+                },
                 onRoute: () => context.push(
                   RoutePaths.hubWorkerNavigate,
                   extra: DriverNavigateArgs.fromTask(task),

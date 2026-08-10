@@ -7,6 +7,7 @@ import '../../../../core/utils/provider_refresh.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../notification/presentation/widgets/notification_bell_button.dart';
+import '../../../ops_map/presentation/providers/driver_run_sheet_provider.dart';
 import '../../../ops_map/presentation/screens/driver_navigate_screen.dart';
 import '../../domain/entities/driver_task.dart';
 import '../providers/driver_providers.dart';
@@ -152,11 +153,18 @@ class _TaskList extends ConsumerWidget {
             itemCount: tasks.length,
             itemBuilder: (context, index) {
               final task = tasks[index];
+              final sheet = ref.watch(driverRunSheetProvider);
+              final stopId = DriverRouteStop.fromTask(task).id;
+              final stopIndex = sheet.indexWhere((s) => s.id == stopId);
               return DriverTaskTile(
                 task: task,
+                routeStopNumber: stopIndex >= 0 ? stopIndex + 1 : null,
                 onTap: () => context.push(
                   RoutePaths.driverTaskDetail(task.id),
                 ),
+                onToggleRoute: () {
+                  ref.read(driverRunSheetProvider.notifier).toggleTask(task);
+                },
                 onRoute: () => context.push(
                   RoutePaths.hubWorkerNavigate,
                   extra: DriverNavigateArgs.fromTask(task),
