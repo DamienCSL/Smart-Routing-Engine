@@ -206,6 +206,12 @@ class DriverApiClient {
           'preferredZones': preferredZones,
       },
     );
+    if (json['pendingVerification'] == true) {
+      throw PendingVerificationException(
+        json['message']?.toString() ??
+            'Staff registration received. Wait for admin verification before signing in.',
+      );
+    }
     final token = json['token']?.toString();
     if (token == null || token.isEmpty) {
       throw const AuthException('Register response missing token');

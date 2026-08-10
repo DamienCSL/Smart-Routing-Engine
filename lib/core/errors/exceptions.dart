@@ -23,3 +23,9 @@ final class NotFoundException extends AppException {
 final class ValidationException extends AppException {
   const ValidationException(super.message);
 }
+
+final class PendingVerificationException extends AppException {
+  const PendingVerificationException([
+    super.message = 'Account awaiting admin verification',
+  ]);
+}

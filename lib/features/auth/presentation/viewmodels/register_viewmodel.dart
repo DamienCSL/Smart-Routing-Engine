@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/constants/demo_zones.dart';
+import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/driver_api_session.dart';
 import '../../../../shared/enums/user_role.dart';
 import '../providers/auth_providers.dart';
@@ -10,12 +11,14 @@ class RegisterState {
   const RegisterState({
     this.isLoading = false,
     this.errorMessage,
+    this.pendingMessage,
     this.selectedRole = UserRole.customer,
     this.preferredZones = const [],
   });
 
   final bool isLoading;
   final String? errorMessage;
+  final String? pendingMessage;
   final UserRole selectedRole;
   final List<String> preferredZones;
 
@@ -27,13 +30,17 @@ class RegisterState {
   RegisterState copyWith({
     bool? isLoading,
     String? errorMessage,
+    String? pendingMessage,
     UserRole? selectedRole,
     List<String>? preferredZones,
     bool clearError = false,
+    bool clearPending = false,
   }) {
     return RegisterState(
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      pendingMessage:
+          clearPending ? null : (pendingMessage ?? this.pendingMessage),
       selectedRole: selectedRole ?? this.selectedRole,
       preferredZones: preferredZones ?? this.preferredZones,
     );
@@ -70,7 +77,7 @@ class RegisterViewModel extends StateNotifier<RegisterState> {
   }) async {
     if (state.isLoading) return false;
 
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(isLoading: true, clearError: true, clearPending: true);
 
     try {
       if (Env.useDriverApi && !Env.isSupabaseConfigured) {
@@ -112,6 +119,9 @@ class RegisterViewModel extends StateNotifier<RegisterState> {
           return false;
         },
       );
+    } on PendingVerificationException catch (e) {
+      state = state.copyWith(pendingMessage: e.message);
+      return false;
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
       return false;

@@ -47,7 +47,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               phone: _phoneController.text,
             );
 
-    if (success && mounted) {
+    if (!mounted) return;
+    final pending =
+        ref.read(registerViewModelProvider).pendingMessage;
+    if (pending != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(pending), duration: const Duration(seconds: 6)),
+      );
+      context.go(RoutePaths.login);
+      return;
+    }
+    if (success) {
       // GoRouter redirect handles role-based navigation.
     }
   }
@@ -78,7 +88,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     AuthHeader(
                       title: 'Create account',
                       subtitle: Env.useDriverApi
-                          ? 'Register as customer or driver against IPOSB API'
+                          ? 'Customers can sign in immediately. Drivers and dispatchers wait for admin verification.'
                           : 'Register as any role for demo testing',
                     ),
                     const SizedBox(height: 32),
@@ -139,7 +149,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     DropdownButtonFormField<UserRole>(
                       value: state.selectedRole,
                       decoration: const InputDecoration(
-                        labelText: 'Role (Demo)',
+                        labelText: 'Role',
                         prefixIcon: Icon(Icons.badge_outlined),
                       ),
                       items: (Env.useDriverApi
@@ -170,6 +180,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               }
                             },
                     ),
+                    if (state.needsZones && Env.useDriverApi) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Your ${state.selectedRole == UserRole.dispatcher ? 'dispatcher' : 'driver'} account will stay pending until an IPOSB admin approves it.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                     if (state.needsZones) ...[
                       const SizedBox(height: 16),
                       Text(
