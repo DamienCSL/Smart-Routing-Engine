@@ -130,7 +130,7 @@ class _DriverNavigateScreenState extends State<DriverNavigateScreen> {
 
     final query = [
       widget.args.address,
-      if ((widget.args.zone ?? '').isNotEmpty) widget.args.zone,
+      if ((widget.args.zone ?? '').trim().isNotEmpty) widget.args.zone!.trim(),
     ].where((e) => e.trim().isNotEmpty).join(', ');
 
     if (query.trim().length >= 2) {
