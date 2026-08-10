@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:intl/intl.dart';
+
 import '../../../../core/constants/route_paths.dart';
 import '../../../../core/utils/provider_refresh.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../loyalty/domain/entities/loyalty_account.dart';
+import '../../../loyalty/presentation/providers/loyalty_providers.dart';
 import '../../../notification/presentation/widgets/notification_bell_button.dart';
 import '../../../../shared/enums/shipment_status.dart';
 import '../../../shipment/presentation/providers/shipment_providers.dart';
 import '../../../shipment/presentation/widgets/shipment_list_tile.dart';
+import '../../../wallet/presentation/providers/wallet_providers.dart';
 
 class CustomerHomeScreen extends ConsumerWidget {
   const CustomerHomeScreen({super.key});
@@ -135,6 +140,8 @@ class CustomerHomeScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
+                _WalletLoyaltyStrip(),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
@@ -151,6 +158,26 @@ class CustomerHomeScreen extends ConsumerWidget {
                         icon: Icons.travel_explore,
                         label: 'Track parcel',
                         onTap: () => context.push(RoutePaths.trackOrder),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _QuickAction(
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: 'E-Wallet',
+                        onTap: () => context.push(RoutePaths.customerWallet),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _QuickAction(
+                        icon: Icons.card_giftcard_outlined,
+                        label: 'Rewards',
+                        onTap: () => context.push(RoutePaths.customerLoyalty),
                       ),
                     ),
                   ],
@@ -268,6 +295,85 @@ class CustomerHomeScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _WalletLoyaltyStrip extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final wallet = ref.watch(walletAccountProvider);
+    final loyalty = ref.watch(loyaltyAccountProvider);
+    final theme = Theme.of(context);
+    final money = NumberFormat.currency(symbol: 'RM ', decimalDigits: 2);
+    final tier = tierForPoints(loyalty.points);
+
+    return Row(
+      children: [
+        Expanded(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => context.push(RoutePaths.customerWallet),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: .1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Wallet',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    money.format(wallet.balance),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => context.push(RoutePaths.customerLoyalty),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.tertiary.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${tier.name} rewards',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${loyalty.points} pts',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

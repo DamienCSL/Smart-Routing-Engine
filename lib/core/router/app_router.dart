@@ -15,6 +15,8 @@ import '../../features/customer/presentation/screens/create_shipment_screen.dart
 import '../../features/customer/presentation/screens/customer_home_screen.dart';
 import '../../features/customer/presentation/screens/address_book_screen.dart';
 import '../../features/customer/presentation/screens/shipment_detail_screen.dart';
+import '../../features/loyalty/presentation/screens/loyalty_screen.dart';
+import '../../features/wallet/presentation/screens/wallet_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_home_screen.dart';
 import '../../features/drop_point/presentation/screens/drop_point_home_screen.dart';
 import '../../features/drop_point/presentation/screens/drop_point_task_detail_screen.dart';
@@ -57,6 +59,48 @@ List<RouteBase> _sharedAuthRoutes() => [
     builder: (context, state) => const NotificationsScreen(),
   ),
 ];
+
+List<RouteBase> _customerChildRoutes() => [
+      GoRoute(
+        path: 'create',
+        name: 'customerCreate',
+        builder: (context, state) => const CreateShipmentScreen(),
+      ),
+      GoRoute(
+        path: 'pick-location',
+        name: 'customerPickLocation',
+        builder: (context, state) {
+          final extra = state.extra;
+          final args = extra is AddressPickArgs
+              ? extra
+              : const AddressPickArgs(title: 'Pick location');
+          return CustomerAddressPickerScreen(args: args);
+        },
+      ),
+      GoRoute(
+        path: 'addresses',
+        name: 'customerAddressBook',
+        builder: (context, state) => const AddressBookScreen(),
+      ),
+      GoRoute(
+        path: 'wallet',
+        name: 'customerWallet',
+        builder: (context, state) => const WalletScreen(),
+      ),
+      GoRoute(
+        path: 'loyalty',
+        name: 'customerLoyalty',
+        builder: (context, state) => const LoyaltyScreen(),
+      ),
+      GoRoute(
+        path: 'shipments/:id',
+        name: 'customerShipmentDetail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return ShipmentDetailScreen(shipmentId: id);
+        },
+      ),
+    ];
 
 List<RouteBase> _hubWorkerRoutes() => [
   GoRoute(
@@ -157,37 +201,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: RoutePaths.customerHome,
           name: 'customer',
           builder: (context, state) => const CustomerHomeScreen(),
-          routes: [
-            GoRoute(
-              path: 'create',
-              name: 'customerCreate',
-              builder: (context, state) => const CreateShipmentScreen(),
-            ),
-            GoRoute(
-              path: 'pick-location',
-              name: 'customerPickLocation',
-              builder: (context, state) {
-                final extra = state.extra;
-                final args = extra is AddressPickArgs
-                    ? extra
-                    : const AddressPickArgs(title: 'Pick location');
-                return CustomerAddressPickerScreen(args: args);
-              },
-            ),
-            GoRoute(
-              path: 'addresses',
-              name: 'customerAddressBook',
-              builder: (context, state) => const AddressBookScreen(),
-            ),
-            GoRoute(
-              path: 'shipments/:id',
-              name: 'customerShipmentDetail',
-              builder: (context, state) {
-                final id = state.pathParameters['id']!;
-                return ShipmentDetailScreen(shipmentId: id);
-              },
-            ),
-          ],
+          routes: _customerChildRoutes(),
         ),
         GoRoute(
           path: RoutePaths.trackOrder,
@@ -226,17 +240,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ..._sharedAuthRoutes(),
       GoRoute(
         path: RoutePaths.customerHome,
-        name: 'customer',
+        name: 'customerSupabase',
         builder: (context, state) => const CustomerHomeScreen(),
         routes: [
           GoRoute(
             path: 'create',
-            name: 'customerCreate',
+            name: 'customerCreateSb',
             builder: (context, state) => const CreateShipmentScreen(),
           ),
           GoRoute(
             path: 'pick-location',
-            name: 'customerPickLocation',
+            name: 'customerPickLocationSb',
             builder: (context, state) {
               final extra = state.extra;
               final args = extra is AddressPickArgs
@@ -247,12 +261,22 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: 'addresses',
-            name: 'customerAddressBook',
+            name: 'customerAddressBookSb',
             builder: (context, state) => const AddressBookScreen(),
           ),
           GoRoute(
+            path: 'wallet',
+            name: 'customerWalletSb',
+            builder: (context, state) => const WalletScreen(),
+          ),
+          GoRoute(
+            path: 'loyalty',
+            name: 'customerLoyaltySb',
+            builder: (context, state) => const LoyaltyScreen(),
+          ),
+          GoRoute(
             path: 'shipments/:id',
-            name: 'customerShipmentDetail',
+            name: 'customerShipmentDetailSb',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
               return ShipmentDetailScreen(shipmentId: id);

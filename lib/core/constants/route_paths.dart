@@ -10,6 +10,8 @@ abstract final class RoutePaths {
   static const String customerCreateShipment = '/customer/create';
   static const String customerPickLocation = '/customer/pick-location';
   static const String customerAddressBook = '/customer/addresses';
+  static const String customerWallet = '/customer/wallet';
+  static const String customerLoyalty = '/customer/loyalty';
   static const String customerShipmentDetailPath = '/customer/shipments/:id';
 
   static String customerShipmentDetail(String id) => '/customer/shipments/$id';

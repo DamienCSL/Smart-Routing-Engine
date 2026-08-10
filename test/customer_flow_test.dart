@@ -14,6 +14,15 @@ void main() {
       isTrue,
     );
     expect(canAccessRoute(UserRole.customer, RoutePaths.notifications), isTrue);
+    expect(canAccessRoute(UserRole.customer, RoutePaths.customerWallet), isTrue);
+    expect(
+      canAccessRoute(UserRole.customer, RoutePaths.customerLoyalty),
+      isTrue,
+    );
+    expect(
+      canAccessRoute(UserRole.dispatcher, RoutePaths.customerWallet),
+      isFalse,
+    );
     expect(
       canAccessRoute(UserRole.customer, RoutePaths.hubWorkerHome),
       isFalse,
