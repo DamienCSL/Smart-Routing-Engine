@@ -21,11 +21,13 @@ import '../../features/dispatcher/presentation/screens/dispatcher_home_screen.da
 import '../../features/drop_point/presentation/screens/drop_point_home_screen.dart';
 import '../../features/drop_point/presentation/screens/drop_point_task_detail_screen.dart';
 import '../../features/hub_worker/presentation/screens/demo_ops_desk_screen.dart';
+import '../../features/driver/domain/entities/driver_task.dart';
 import '../../features/hub_worker/presentation/screens/hub_worker_home_screen.dart';
 import '../../features/hub_worker/presentation/screens/hub_worker_scan_screen.dart';
 import '../../features/hub_worker/presentation/screens/hub_worker_task_detail_screen.dart';
 import '../../features/tracking/presentation/screens/track_order_screen.dart';
 import '../../features/notification/presentation/screens/notifications_screen.dart';
+import '../../features/ops_map/presentation/screens/driver_navigate_screen.dart';
 import '../../features/ops_map/presentation/screens/role_ops_map_screens.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
@@ -129,6 +131,30 @@ List<RouteBase> _hubWorkerRoutes() => [
             initialQuery: q,
             initialLat: lat,
             initialLng: lng,
+          );
+        },
+      ),
+      GoRoute(
+        path: 'navigate',
+        name: 'hubWorkerNavigate',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is DriverNavigateArgs) {
+            return DriverNavigateScreen(args: extra);
+          }
+          final q = state.uri.queryParameters;
+          final type = q['mode'] == 'delivery'
+              ? DriverTaskType.delivery
+              : DriverTaskType.pickup;
+          return DriverNavigateScreen(
+            args: DriverNavigateArgs(
+              cnNo: q['cn'] ?? '',
+              type: type,
+              address: q['q'] ?? '',
+              zone: q['zone'],
+              lat: double.tryParse(q['lat'] ?? ''),
+              lng: double.tryParse(q['lng'] ?? ''),
+            ),
           );
         },
       ),

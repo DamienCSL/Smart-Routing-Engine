@@ -7,6 +7,7 @@ import '../../../../core/utils/provider_refresh.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../notification/presentation/widgets/notification_bell_button.dart';
+import '../../../ops_map/presentation/screens/driver_navigate_screen.dart';
 import '../../domain/entities/driver_task.dart';
 import '../providers/driver_providers.dart';
 import '../widgets/driver_task_tile.dart';
@@ -155,6 +156,10 @@ class _TaskList extends ConsumerWidget {
                 task: task,
                 onTap: () => context.push(
                   RoutePaths.driverTaskDetail(task.id),
+                ),
+                onRoute: () => context.push(
+                  RoutePaths.hubWorkerNavigate,
+                  extra: DriverNavigateArgs.fromTask(task),
                 ),
               );
             },

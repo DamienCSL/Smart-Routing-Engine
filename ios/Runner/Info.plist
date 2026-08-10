@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>IPOSB uses the camera to scan shipment QR codes and update delivery status.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>IPOSB uses your location to draw a driving route from where you are to the pickup or delivery stop.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

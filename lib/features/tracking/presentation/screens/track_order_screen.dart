@@ -86,9 +86,15 @@ class _TrackOrderScreenState extends ConsumerState<TrackOrderScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              FilledButton(
-                onPressed: _loading ? null : _track,
-                child: const Text('Track'),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(88, 48),
+                  ),
+                  onPressed: _loading ? null : _track,
+                  child: const Text('Track'),
+                ),
               ),
             ],
           ),

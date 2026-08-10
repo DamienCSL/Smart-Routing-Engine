@@ -55,7 +55,10 @@ abstract final class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(double.infinity, 48),
+          // Height only — infinite min-width crashes FilledButton inside Rows
+          // (Track order, Scan CN, dialogs). Full-width screens still stretch
+          // via Column crossAxisAlignment: stretch.
+          minimumSize: const Size(64, 48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

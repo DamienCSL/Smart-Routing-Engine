@@ -40,6 +40,7 @@ abstract final class RoutePaths {
 
   static const String hubWorkerHome = '/hub-worker';
   static const String hubWorkerMap = '/hub-worker/map';
+  static const String hubWorkerNavigate = '/hub-worker/navigate';
   static const String hubWorkerScan = '/hub-worker/scan';
   static const String hubWorkerDemoDesk = '/hub-worker/demo-desk';
   static String hubWorkerTaskDetail(String id) => '/hub-worker/tasks/$id';

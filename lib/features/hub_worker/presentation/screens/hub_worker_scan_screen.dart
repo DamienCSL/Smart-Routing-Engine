@@ -289,6 +289,9 @@ class _HubWorkerScanScreenState extends ConsumerState<HubWorkerScanScreen> {
               ),
               const SizedBox(width: 8),
               FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(88, 48),
+                ),
                 onPressed: _busy ? null : () => _loadCn(_manualController.text),
                 child: const Text('Load'),
               ),

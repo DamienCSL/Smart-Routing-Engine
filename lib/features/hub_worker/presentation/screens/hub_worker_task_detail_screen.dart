@@ -3,12 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import 'package:go_router/go_router.dart';
+
 import '../../../../core/config/env.dart';
+import '../../../../core/constants/route_paths.dart';
 import '../../../../core/utils/google_maps_launcher.dart';
 import '../../../../core/utils/provider_refresh.dart';
 import '../../../../core/utils/shipment_qr_payload.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../driver/domain/entities/driver_task.dart';
+import '../../../ops_map/presentation/screens/driver_navigate_screen.dart';
 import '../../../shipment/presentation/providers/shipment_providers.dart';
 import '../../../shipment/presentation/widgets/shipment_status_chip.dart';
 import '../../../shipment/presentation/widgets/shipment_timeline.dart';
@@ -139,6 +143,19 @@ class HubWorkerTaskDetailScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: () => context.push(
+                          RoutePaths.hubWorkerNavigate,
+                          extra: DriverNavigateArgs.fromTask(task),
+                        ),
+                        icon: const Icon(Icons.alt_route),
+                        label: Text(
+                          task.type == DriverTaskType.pickup
+                              ? 'Show route to pickup'
+                              : 'Show route to delivery',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       OutlinedButton.icon(
                         onPressed: () async {
                           if (Env.useDriverApi) {
@@ -180,7 +197,7 @@ class HubWorkerTaskDetailScreen extends ConsumerWidget {
                           }
                         },
                         icon: const Icon(Icons.directions),
-                        label: const Text('Navigate in Google Maps'),
+                        label: const Text('Open in Google Maps'),
                       ),
                     ],
                   ),

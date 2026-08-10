@@ -9,10 +9,12 @@ class DriverTaskTile extends StatelessWidget {
     super.key,
     required this.task,
     required this.onTap,
+    this.onRoute,
   });
 
   final DriverTask task;
   final VoidCallback onTap;
+  final VoidCallback? onRoute;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +77,24 @@ class DriverTaskTile extends StatelessWidget {
                   color: theme.colorScheme.outline,
                 ),
               ),
+              if (onRoute != null) ...[
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.tonalIcon(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 40),
+                    ),
+                    onPressed: onRoute,
+                    icon: const Icon(Icons.alt_route, size: 18),
+                    label: Text(
+                      task.type == DriverTaskType.pickup
+                          ? 'Route to pickup'
+                          : 'Route to delivery',
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
