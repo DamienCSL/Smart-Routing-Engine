@@ -27,6 +27,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late final TextEditingController _phoneController;
   bool _isEditing = false;
   bool _isSaving = false;
+  bool _isSavingZones = false;
   bool _didRefresh = false;
   List<String> _preferredZones = const [];
 
@@ -81,13 +82,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (Env.useDriverApi && !Env.isSupabaseConfigured) {
-      if (_canEditZones && _preferredZones.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Select at least one preferred zone')),
-        );
-        return;
-      }
-
       setState(() => _isSaving = true);
       try {
         await ref
@@ -98,11 +92,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ? null
                   : _phoneController.text.trim(),
             );
-        if (_canEditZones) {
-          await ref
-              .read(driverApiSessionProvider.notifier)
-              .updatePreferredZones(_preferredZones);
-        }
         if (!mounted) return;
         ref.invalidate(currentUserProfileProvider);
         ref.invalidate(hubWorkerProfileProvider);
@@ -187,6 +176,125 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _openAddressBook() async {
     await context.push(RoutePaths.customerAddressBook);
+  }
+
+  List<String> _zonesFor(UserProfile profile) {
+    if (_preferredZones.isNotEmpty) return List<String>.from(_preferredZones);
+    final session = ref.read(driverApiSessionProvider);
+    if (session != null && session.preferredZones.isNotEmpty) {
+      return List<String>.from(session.preferredZones);
+    }
+    return List<String>.from(profile.preferredZones);
+  }
+
+  Future<void> _persistZones(List<String> zones) async {
+    if (!_canEditZones || _isSavingZones) return;
+    final previous = List<String>.from(_preferredZones);
+    setState(() {
+      _preferredZones = List<String>.from(zones);
+      _isSavingZones = true;
+    });
+    try {
+      await ref
+          .read(driverApiSessionProvider.notifier)
+          .updatePreferredZones(zones);
+      if (!mounted) return;
+      ref.invalidate(currentUserProfileProvider);
+      ref.invalidate(hubWorkerProfileProvider);
+      ref.invalidate(dispatcherProfileProvider);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _preferredZones = previous);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not update zones: $e')));
+    } finally {
+      if (mounted) setState(() => _isSavingZones = false);
+    }
+  }
+
+  Future<void> _addPreferredZone(UserProfile profile) async {
+    final current = _zonesFor(profile);
+    final available = DemoZones.all
+        .where((zone) => !current.contains(zone))
+        .toList();
+    if (available.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('All available zones are already added')),
+      );
+      return;
+    }
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: Text(
+                    'Add preferred zone',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(ctx).height * 0.5,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: available.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, index) {
+                      final zone = available[index];
+                      return ListTile(
+                        leading: Icon(
+                          Icons.map_outlined,
+                          color: theme.colorScheme.primary,
+                        ),
+                        title: Text(DemoZones.labelOf(zone)),
+                        subtitle: Text(zone),
+                        onTap: () => Navigator.pop(ctx, zone),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (selected == null || !mounted) return;
+    await _persistZones([...current, selected]);
+  }
+
+  Future<void> _removePreferredZone(UserProfile profile, String zone) async {
+    final current = _zonesFor(profile);
+    if (current.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Keep at least one preferred zone'),
+        ),
+      );
+      return;
+    }
+    await _persistZones(current.where((z) => z != zone).toList());
+  }
+
+  Future<void> _setPrimaryZone(UserProfile profile, String zone) async {
+    final current = _zonesFor(profile);
+    if (current.isEmpty || current.first == zone) return;
+    await _persistZones([zone, ...current.where((z) => z != zone)]);
   }
 
   @override
@@ -330,14 +438,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ],
                         ),
                         const SizedBox(height: 20),
-                        _RoleDetailsSection(
-                          profile: profile,
-                          isEditing: _isEditing,
-                          preferredZones: _preferredZones,
-                          canEditZones: _canEditZones,
-                          onZonesChanged: (zones) =>
-                              setState(() => _preferredZones = zones),
-                        ),
+                        _RoleDetailsSection(profile: profile),
+                        if (_canEditZones) ...[
+                          const SizedBox(height: 20),
+                          _PreferredZonesCard(
+                            zones: _zonesFor(profile),
+                            isSaving: _isSavingZones,
+                            onAdd: () => _addPreferredZone(profile),
+                            onRemove: (zone) =>
+                                _removePreferredZone(profile, zone),
+                            onSetPrimary: (zone) =>
+                                _setPrimaryZone(profile, zone),
+                          ),
+                        ],
                         if (!_isEditing) ...[
                           const SizedBox(height: 28),
                           _SectionLabel(label: 'Session'),
@@ -611,19 +724,9 @@ class _ActionTile extends StatelessWidget {
 }
 
 class _RoleDetailsSection extends ConsumerWidget {
-  const _RoleDetailsSection({
-    required this.profile,
-    required this.isEditing,
-    required this.preferredZones,
-    required this.canEditZones,
-    required this.onZonesChanged,
-  });
+  const _RoleDetailsSection({required this.profile});
 
   final UserProfile profile;
-  final bool isEditing;
-  final List<String> preferredZones;
-  final bool canEditZones;
-  final ValueChanged<List<String>> onZonesChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -652,21 +755,9 @@ class _RoleDetailsSection extends ConsumerWidget {
       case UserRole.hubWorker:
       case UserRole.driver:
       case UserRole.admin:
-        return _HubOpsDetails(
-          profile: profile,
-          isEditing: isEditing,
-          preferredZones: preferredZones,
-          canEditZones: canEditZones,
-          onZonesChanged: onZonesChanged,
-        );
+        return _HubOpsDetails(profile: profile);
       case UserRole.dispatcher:
-        return _DispatcherDetails(
-          profile: profile,
-          isEditing: isEditing,
-          preferredZones: preferredZones,
-          canEditZones: canEditZones,
-          onZonesChanged: onZonesChanged,
-        );
+        return _DispatcherDetails(profile: profile);
       case UserRole.dropPoint:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -716,19 +807,9 @@ class _RoleDetailsSection extends ConsumerWidget {
 }
 
 class _HubOpsDetails extends ConsumerWidget {
-  const _HubOpsDetails({
-    required this.profile,
-    required this.isEditing,
-    required this.preferredZones,
-    required this.canEditZones,
-    required this.onZonesChanged,
-  });
+  const _HubOpsDetails({required this.profile});
 
   final UserProfile profile;
-  final bool isEditing;
-  final List<String> preferredZones;
-  final bool canEditZones;
-  final ValueChanged<List<String>> onZonesChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -771,16 +852,8 @@ class _HubOpsDetails extends ConsumerWidget {
               value: hub == null
                   ? '—'
                   : (hub.isAvailable ? 'Available' : 'Unavailable'),
-              isLast: !(Env.useDriverApi && canEditZones),
+              isLast: true,
             ),
-            if (Env.useDriverApi && canEditZones)
-              _ZonesEditor(
-                isEditing: isEditing,
-                preferredZones: preferredZones.isNotEmpty
-                    ? preferredZones
-                    : (hub?.preferredZones ?? profile.preferredZones),
-                onZonesChanged: onZonesChanged,
-              ),
           ],
         ),
       ],
@@ -789,19 +862,9 @@ class _HubOpsDetails extends ConsumerWidget {
 }
 
 class _DispatcherDetails extends ConsumerWidget {
-  const _DispatcherDetails({
-    required this.profile,
-    required this.isEditing,
-    required this.preferredZones,
-    required this.canEditZones,
-    required this.onZonesChanged,
-  });
+  const _DispatcherDetails({required this.profile});
 
   final UserProfile profile;
-  final bool isEditing;
-  final List<String> preferredZones;
-  final bool canEditZones;
-  final ValueChanged<List<String>> onZonesChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -841,16 +904,8 @@ class _DispatcherDetails extends ConsumerWidget {
               icon: Icons.map_outlined,
               label: 'Primary zone',
               value: disp == null ? '—' : DemoZones.labelOf(disp.zone),
-              isLast: !(Env.useDriverApi && canEditZones),
+              isLast: true,
             ),
-            if (Env.useDriverApi && canEditZones)
-              _ZonesEditor(
-                isEditing: isEditing,
-                preferredZones: preferredZones.isNotEmpty
-                    ? preferredZones
-                    : (disp?.preferredZones ?? profile.preferredZones),
-                onZonesChanged: onZonesChanged,
-              ),
           ],
         ),
       ],
@@ -858,76 +913,101 @@ class _DispatcherDetails extends ConsumerWidget {
   }
 }
 
-class _ZonesEditor extends StatelessWidget {
-  const _ZonesEditor({
-    required this.isEditing,
-    required this.preferredZones,
-    required this.onZonesChanged,
+class _PreferredZonesCard extends StatelessWidget {
+  const _PreferredZonesCard({
+    required this.zones,
+    required this.isSaving,
+    required this.onAdd,
+    required this.onRemove,
+    required this.onSetPrimary,
   });
 
-  final bool isEditing;
-  final List<String> preferredZones;
-  final ValueChanged<List<String>> onZonesChanged;
+  final List<String> zones;
+  final bool isSaving;
+  final VoidCallback onAdd;
+  final ValueChanged<String> onRemove;
+  final ValueChanged<String> onSetPrimary;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final canAdd = DemoZones.all.any((zone) => !zones.contains(zone));
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Preferred zones',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 10),
-          if (isEditing)
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: DemoZones.all.map((zone) {
-                final selected = preferredZones.contains(zone);
-                return FilterChip(
-                  label: Text(DemoZones.labelOf(zone)),
-                  selected: selected,
-                  onSelected: (_) {
-                    final next = [...preferredZones];
-                    if (selected) {
-                      next.remove(zone);
-                    } else {
-                      next.add(zone);
-                    }
-                    onZonesChanged(next);
-                  },
-                );
-              }).toList(),
-            )
-          else if (preferredZones.isEmpty)
-            Text(
-              'None selected',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: preferredZones
-                  .map(
-                    (zone) => Chip(
-                      visualDensity: VisualDensity.compact,
-                      label: Text(DemoZones.labelOf(zone)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionLabel(label: 'Preferred zones'),
+        _InfoCard(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Jobs in these zones are ranked first for you. Tap a zone to make it primary. Remove any zone you no longer cover.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
-                  )
-                  .toList(),
+                  ),
+                  const SizedBox(height: 14),
+                  if (zones.isEmpty)
+                    Text(
+                      'No preferred zones yet. Add at least one.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (var i = 0; i < zones.length; i++)
+                          InputChip(
+                            avatar: i == 0
+                                ? Icon(
+                                    Icons.star_rounded,
+                                    size: 18,
+                                    color: scheme.primary,
+                                  )
+                                : null,
+                            label: Text(
+                              i == 0
+                                  ? '${DemoZones.labelOf(zones[i])} · Primary'
+                                  : DemoZones.labelOf(zones[i]),
+                            ),
+                            onPressed: isSaving
+                                ? null
+                                : () => onSetPrimary(zones[i]),
+                            onDeleted: isSaving
+                                ? null
+                                : () => onRemove(zones[i]),
+                            deleteIcon: const Icon(Icons.close, size: 18),
+                            deleteButtonTooltipMessage: 'Remove zone',
+                          ),
+                      ],
+                    ),
+                  if (isSaving) ...[
+                    const SizedBox(height: 12),
+                    const LinearProgressIndicator(minHeight: 2),
+                  ],
+                  const SizedBox(height: 12),
+                  FilledButton.tonalIcon(
+                    onPressed: isSaving || !canAdd ? null : onAdd,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 44),
+                    ),
+                    icon: const Icon(Icons.add_location_alt_outlined, size: 20),
+                    label: Text(canAdd ? 'Add zone' : 'All zones added'),
+                  ),
+                ],
+              ),
             ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 }
